@@ -71,7 +71,7 @@ export const commit = async (
         if (!config.ACP_API_KEY && config.ACP_AI_PROVIDER !== 'ollama') {
             console.error(
                 chalk.red(
-                    '❌ API key not configured. Please run: smc config set ACP_API_KEY=<your_api_key>'
+                    '❌ API key not configured. Please run: acp config set ACP_API_KEY=<your_api_key>'
                 )
             );
             process.exit(1);

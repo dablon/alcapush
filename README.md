@@ -54,7 +54,7 @@ acp config set ACP_API_KEY=sk-your-openai-api-key
 3. **Generate and commit**:
 
 ```bash
-smc
+acp
 ```
 
 That's it! Alcapush will:
@@ -69,7 +69,7 @@ That's it! Alcapush will:
 
 ```bash
 # Generate commit for staged changes
-smc
+acp
 
 # Auto-commit without confirmation
 acp --yes
@@ -159,7 +159,7 @@ acp config set ACP_MODEL=mistral
 
 ```bash
 acp config set ACP_EMOJI=true
-smc
+acp
 # Output: ✨ feat: add user authentication
 ```
 
@@ -167,7 +167,7 @@ smc
 
 ```bash
 acp config set ACP_DESCRIPTION=true
-smc
+acp
 # Output:
 # feat: add user authentication
 #
@@ -179,7 +179,7 @@ smc
 
 ```bash
 acp config set ACP_LANGUAGE=es
-smc
+acp
 # Output: feat: agregar autenticación de usuario
 ```
 
@@ -187,7 +187,7 @@ smc
 
 ```bash
 acp config set ACP_ONE_LINE_COMMIT=true
-smc
+acp
 # Output: feat: add user authentication
 ```
 
@@ -205,7 +205,7 @@ Before generating a commit message, Alcapush displays:
 ### Example Output
 
 ```bash
-$ smc
+$ acp
 
 📊 Usage Estimate:
    Input tokens: 1,234
@@ -274,8 +274,6 @@ Alcapush includes up-to-date pricing for popular models:
 ![Config Management](docs/screenshots/config-management.png)
 *Enhanced configuration commands with describe and test subcommands*
 
-> **Note:** Screenshots should be placed in the `docs/screenshots/` directory. Update the paths above once screenshots are added.
-
 ## 🆚 Comparison with OpenCommit
 
 | Feature | Alcapush | OpenCommit |
@@ -310,7 +308,7 @@ npm run build
 npm link
 
 # Test
-smc
+acp
 ```
 
 ## 📝 License
@@ -331,6 +329,3 @@ This project extends opencommit with additional features and improvements while 
 
 If you have any questions or issues, please open an issue on GitHub.
 
----
-
-Made with ❤️ and AI

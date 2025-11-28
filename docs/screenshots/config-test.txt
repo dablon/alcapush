@@ -1,0 +1,9 @@
+
+[32m✅ Connection successful![0m
+[36m
+📊 Configuration Summary:[0m
+  Provider: [32mopenai[0m
+  Model: [32mgpt-5-nano[0m
+  API Key: [32m***abcd[0m
+
+  Response: OK

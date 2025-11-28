@@ -1,0 +1,9 @@
+
+[36m
+📋 Current configuration:[0m
+
+  [37mACP_API_KEY: [32m***abcd[0m
+  [37mACP_AI_PROVIDER: [32mopenai[0m
+  [37mACP_MODEL: [32mgpt-5-nano[0m
+  [37mACP_EMOJI: [32mfalse[0m
+  [37mACP_LANGUAGE: [32men[0m

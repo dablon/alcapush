@@ -19,14 +19,22 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/yourusername/smartcommit.git"
+    "url": "git+https://github.com/yourusername/alcapush.git"
+  },
+  "homepage": "https://github.com/yourusername/alcapush#readme",
+  "bugs": {
+    "url": "https://github.com/yourusername/alcapush/issues"
   },
   "type": "module",
-  "author": "Your Name",
+  "author": "Nicolas Alcaraz <nicolas.alcaraz@tafitech.io>",
   "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "files": [
     "out/cli.cjs",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "watch": "npm run -S build -- --sourcemap --watch",
@@ -52,6 +60,7 @@
     "eslint": "^9.0.0",
     "jest": "^29.7.0",
     "prettier": "^3.0.0",
+    "puppeteer": "^24.31.0",
     "rimraf": "^6.0.1",
     "ts-jest": "^29.1.2",
     "ts-node": "^10.9.1",
