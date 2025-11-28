@@ -19,11 +19,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/yourusername/alcapush.git"
+    "url": "git+https://github.com/dablon/alcapush.git"
   },
-  "homepage": "https://github.com/yourusername/alcapush#readme",
+  "homepage": "https://github.com/dablon/alcapush#readme",
   "bugs": {
-    "url": "https://github.com/yourusername/alcapush/issues"
+    "url": "https://github.com/dablon/alcapush/issues"
   },
   "type": "module",
   "author": "Nicolas Alcaraz <nicolas.alcaraz@tafitech.io>",

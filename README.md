@@ -7,7 +7,7 @@
 [![npm version](https://img.shields.io/npm/v/alcapush.svg)](https://www.npmjs.com/package/alcapush)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**GitHub Repository:** [https://github.com/YOUR_USERNAME/alcapush](https://github.com/YOUR_USERNAME/alcapush) *(Update this with your actual repository URL)*
+**GitHub Repository:** [https://github.com/dablon/alcapush](https://github.com/dablon/alcapush)
 
 ## ✨ Features
 
@@ -295,7 +295,7 @@ Alcapush includes up-to-date pricing for popular models:
 
 ```bash
 # Clone the repository
-git clone https://github.com/YOUR_USERNAME/alcapush.git
+git clone https://github.com/dablon/alcapush.git
 cd alcapush
 
 # Install dependencies
@@ -313,7 +313,7 @@ acp
 
 ## 📝 License
 
-MIT © [Your Name]
+MIT © Nicolas Alcaraz
 
 ## 🤝 Contributing
 
