@@ -9,9 +9,7 @@ const packageJSON = {
     description: 'AI-powered git commit message generator with GPT-5-nano support 🚀'
 };
 
-const extraArgs = process.argv.slice(2);
-
-cli(
+const result = cli(
     {
         version: packageJSON.version,
         name: 'alcapush',
@@ -35,7 +33,7 @@ cli(
                 default: false
             }
         },
-        ignoreArgv: (type) => type === 'unknown-flag' || type === 'argument',
+        ignoreArgv: (type) => type === 'unknown-flag',
         help: {
             description: packageJSON.description,
             usage: `
@@ -67,14 +65,18 @@ ${chalk.cyan('Examples:')}
 `
         }
     },
-    async ({ flags }) => {
+    async (argv) => {
+        // If a command was matched, don't run the default commit handler
+        if (argv.command) {
+            return;
+        }
+        
         try {
-            await commit(extraArgs, flags.context, false, flags.fgm, flags.yes);
+            await commit(process.argv.slice(2), argv.flags.context, false, argv.flags.fgm, argv.flags.yes);
         } catch (error) {
             const err = error as Error;
             console.error(chalk.red(`Error: ${err.message}`));
             process.exit(1);
         }
-    },
-    extraArgs
+    }
 );
