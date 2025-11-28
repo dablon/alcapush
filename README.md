@@ -2,10 +2,12 @@
 
 > AI-powered git commit message generator with GPT-5-nano support
 
-Alcapush is an intelligent CLI tool that automatically generates meaningful, well-formatted commit messages using AI. It's similar to opencommit but with enhanced features, better UX, and support for the latest AI models including GPT-5-nano.
+**Alcapush is a fork of [opencommit](https://github.com/di-sukharev/opencommit)** with enhanced features, better UX, and support for the latest AI models including GPT-5-nano.
 
 [![npm version](https://img.shields.io/npm/v/alcapush.svg)](https://www.npmjs.com/package/alcapush)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+**GitHub Repository:** [https://github.com/YOUR_USERNAME/alcapush](https://github.com/YOUR_USERNAME/alcapush) *(Update this with your actual repository URL)*
 
 ## ✨ Features
 
@@ -18,6 +20,20 @@ Alcapush is an intelligent CLI tool that automatically generates meaningful, wel
 - ⚡ **Fast & Efficient**: Intelligent diff splitting for large changes
 - 🎨 **Beautiful CLI**: Colorful output with progress indicators
 - 🔧 **Highly Configurable**: Customize everything to match your workflow
+
+## 🆕 New Features (Compared to OpenCommit)
+
+This fork introduces several enhancements and new capabilities:
+
+- 🚀 **GPT-5-nano Support**: Native support for OpenAI's GPT-5-nano model with optimized API handling
+- 🔄 **Intelligent Auto-Fallback**: Automatically falls back to `gpt-4o-mini` if GPT-5-nano is unavailable
+- 🧪 **Config Test Command**: Test your AI provider configuration with `acp config test`
+- 🎨 **Enhanced CLI Experience**: Improved progress indicators, better error messages, and more intuitive feedback
+- 🔗 **Custom API URL Support**: Configure custom API endpoints for enterprise or proxy setups
+- 📊 **Better Error Handling**: More descriptive error messages with troubleshooting tips
+- ⚙️ **Enhanced Config Management**: Improved configuration commands with `describe` and `test` subcommands
+- 🎯 **Optimized GPT-5-nano Integration**: Special handling for GPT-5-nano's unique API format and response structure
+- 💰 **Cost Estimation**: Real-time cost estimation before generating commit messages to help you track API usage
 
 ## 📦 Installation
 
@@ -80,6 +96,9 @@ acp config list
 # Describe configuration options
 acp config describe
 acp config describe ACP_MODEL
+
+# Test your configuration
+acp config test
 ```
 
 ## ⚙️ Configuration Options
@@ -172,12 +191,101 @@ smc
 # Output: feat: add user authentication
 ```
 
+## 💰 Cost Estimation
+
+Alcapush provides real-time cost estimation before generating commit messages, helping you understand the API usage and costs upfront.
+
+### How It Works
+
+Before generating a commit message, Alcapush displays:
+- **Input tokens**: Estimated tokens in your diff and prompts
+- **Output tokens**: Estimated tokens for the generated message
+- **Estimated cost**: Calculated cost in USD based on your selected model
+
+### Example Output
+
+```bash
+$ smc
+
+📊 Usage Estimate:
+   Input tokens: 1,234
+   Output tokens (estimated): 500
+   Estimated cost: $0.000062
+
+Proceed with generating commit message? › (Y/n)
+```
+
+### Supported Models & Pricing
+
+Alcapush includes up-to-date pricing for popular models:
+
+| Model | Input (per 1M tokens) | Output (per 1M tokens) |
+|-------|---------------------|----------------------|
+| GPT-5-nano | $0.05 | $0.40 |
+| GPT-4o-mini | $0.15 | $0.60 |
+| GPT-4o | $2.50 | $10.00 |
+| Claude 3.5 Sonnet | $3.00 | $15.00 |
+| Gemini Pro | $0.50 | $1.50 |
+| Ollama (local) | Free | Free |
+
+*Pricing is automatically calculated based on current API rates (verified November 2024)*
+
+### Cost Optimization Tips
+
+- Use `gpt-5-nano` or `gpt-4o-mini` for the lowest costs
+- Use Ollama for free local processing
+- Adjust `ACP_TOKENS_MAX_OUTPUT` to limit output token usage
+- Use `ACP_TOKENS_MAX_INPUT` to control input size for large diffs
+
+## 📸 Screenshots
+
+### Cost Estimation Display
+
+![Cost Estimation](docs/screenshots/cost-estimation.png)
+*Real-time cost estimation before generating commit messages*
+
+### GPT-5-nano Support
+
+![GPT-5-nano](docs/screenshots/gpt5-nano.png)
+*Native GPT-5-nano integration with optimized API handling*
+
+### Config Test Command
+
+![Config Test](docs/screenshots/config-test.png)
+*Test your AI provider configuration with `acp config test`*
+
+### Enhanced CLI with Progress Indicators
+
+![Progress Indicators](docs/screenshots/progress-indicators.png)
+*Beautiful CLI with colorful progress indicators and better feedback*
+
+### Auto-Fallback Mechanism
+
+![Auto Fallback](docs/screenshots/auto-fallback.png)
+*Automatic fallback to gpt-4o-mini when GPT-5-nano is unavailable*
+
+### Enhanced Error Messages
+
+![Error Handling](docs/screenshots/error-handling.png)
+*Descriptive error messages with troubleshooting tips*
+
+### Config Management
+
+![Config Management](docs/screenshots/config-management.png)
+*Enhanced configuration commands with describe and test subcommands*
+
+> **Note:** Screenshots should be placed in the `docs/screenshots/` directory. Update the paths above once screenshots are added.
+
 ## 🆚 Comparison with OpenCommit
 
 | Feature | Alcapush | OpenCommit |
 |---------|-------------|------------|
 | GPT-5-nano Support | ✅ | ❌ |
-| Auto-fallback | ✅ | ❌ |
+| Auto-fallback Mechanism | ✅ | ❌ |
+| Cost Estimation | ✅ | ❌ |
+| Config Test Command | ✅ | ❌ |
+| Custom API URL Support | ✅ | ❌ |
+| Enhanced Error Messages | ✅ | ❌ |
 | Colorful CLI | ✅ | ✅ |
 | Progress Indicators | ✅ | ❌ |
 | Multiple AI Providers | ✅ | ✅ |
@@ -189,8 +297,8 @@ smc
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/Alcapush.git
-cd Alcapush
+git clone https://github.com/YOUR_USERNAME/alcapush.git
+cd alcapush
 
 # Install dependencies
 npm install
@@ -215,7 +323,9 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## 🙏 Acknowledgments
 
-Inspired by [opencommit](https://github.com/di-sukharev/opencommit) by di-sukharev.
+**Alcapush is a fork of [opencommit](https://github.com/di-sukharev/opencommit)** by [di-sukharev](https://github.com/di-sukharev).
+
+This project extends opencommit with additional features and improvements while maintaining compatibility with the original tool's core functionality. We're grateful to the opencommit team for creating such a great foundation.
 
 ## 📧 Support
 

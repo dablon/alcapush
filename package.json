@@ -12,7 +12,7 @@
     "cli",
     "alcapush"
   ],
-  "main": "cli.js",
+  "main": "./out/cli.cjs",
   "bin": {
     "alcapush": "out/cli.cjs",
     "acp": "out/cli.cjs"
@@ -25,13 +25,15 @@
   "author": "Your Name",
   "license": "MIT",
   "files": [
-    "out/cli.cjs"
+    "out/cli.cjs",
+    "README.md"
   ],
   "scripts": {
     "watch": "npm run -S build -- --sourcemap --watch",
     "start": "node ./out/cli.cjs",
     "dev": "ts-node ./src/cli.ts",
     "build": "npx rimraf out && node esbuild.config.js",
+    "prepublishOnly": "npm run build",
     "lint": "eslint src --ext ts && tsc --noEmit",
     "format": "prettier --write src",
     "test": "jest test/unit",
