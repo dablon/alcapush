@@ -35,6 +35,7 @@
     "lint": "eslint src --ext ts && tsc --noEmit",
     "format": "prettier --write src",
     "test": "jest test/unit",
+    "test:integration": "npm run build && jest --config jest.config.integration.cjs",
     "test:all": "jest"
   },
   "devDependencies": {

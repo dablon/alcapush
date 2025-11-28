@@ -64,3 +64,33 @@ export const hasChanges = async (): Promise<boolean> => {
         return false;
     }
 };
+
+export const hasRemote = async (): Promise<boolean> => {
+    try {
+        const { stdout } = await execa('git', ['remote']);
+        return stdout.trim().length > 0;
+    } catch (error) {
+        return false;
+    }
+};
+
+export const getRemoteName = async (): Promise<string> => {
+    try {
+        const { stdout } = await execa('git', ['remote']);
+        const remotes = stdout.trim().split('\n').filter(r => r.length > 0);
+        // Prefer 'origin', otherwise use the first remote
+        return remotes.includes('origin') ? 'origin' : (remotes[0] || 'origin');
+    } catch (error) {
+        return 'origin';
+    }
+};
+
+export const push = async (remote?: string, branch?: string): Promise<void> => {
+    try {
+        const remoteName = remote || await getRemoteName();
+        const branchName = branch || await getCurrentBranch();
+        await execa('git', ['push', remoteName, branchName]);
+    } catch (error) {
+        throw new Error('Failed to push changes');
+    }
+};

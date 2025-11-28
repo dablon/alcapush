@@ -6,10 +6,14 @@ import {
     stageAllChanges,
     commit as gitCommit,
     isGitRepository,
-    hasChanges
+    hasChanges,
+    hasRemote,
+    push,
+    getCurrentBranch
 } from '../utils/git';
 import { generateCommitMessageByDiff } from '../generateCommitMessage';
 import { getConfig } from '../utils/config';
+import { estimateCost } from '../utils/costEstimation';
 
 export const commit = async (
     extraArgs: string[] = [],
@@ -73,6 +77,35 @@ export const commit = async (
             process.exit(1);
         }
 
+        // Estimate cost and tokens before generating
+        const costEstimate = await estimateCost(diff, fullGitMojiSpec, context);
+        
+        // Show confirmation with cost and token information
+        if (!skipConfirmation && !isHook) {
+            const costDisplay = costEstimate.estimatedCost > 0
+                ? `${costEstimate.costCurrency}${costEstimate.estimatedCost.toFixed(6)}`
+                : 'Free (local)';
+            
+            const costInfo = [
+                chalk.cyan('📊 Usage Estimate:'),
+                `   Input tokens: ${chalk.yellow(costEstimate.inputTokens.toLocaleString())}`,
+                `   Output tokens (estimated): ${chalk.yellow(costEstimate.outputTokens.toLocaleString())}`,
+                `   Estimated cost: ${chalk.green(costDisplay)}`
+            ].join('\n');
+
+            console.log('\n' + costInfo + '\n');
+
+            const shouldProceed = await p.confirm({
+                message: 'Proceed with generating commit message?',
+                initialValue: true
+            });
+
+            if (p.isCancel(shouldProceed) || !shouldProceed) {
+                console.log(chalk.yellow('Cancelled.'));
+                process.exit(0);
+            }
+        }
+
         // Generate commit message
         const spinner = ora('Generating commit message...').start();
         let commitMessage: string;
@@ -116,6 +149,31 @@ export const commit = async (
         } catch (error) {
             commitSpinner.fail('Failed to commit');
             throw error;
+        }
+
+        // Ask to push if remote exists and not in hook mode
+        if (!isHook) {
+            const hasRemoteRepo = await hasRemote();
+            if (hasRemoteRepo) {
+                const currentBranch = await getCurrentBranch();
+                const shouldPush = await p.confirm({
+                    message: `Push to remote (${currentBranch})?`,
+                    initialValue: true
+                });
+
+                if (!p.isCancel(shouldPush) && shouldPush) {
+                    const pushSpinner = ora('Pushing to remote...').start();
+                    try {
+                        await push();
+                        pushSpinner.succeed(chalk.green('✅ Changes pushed successfully!'));
+                    } catch (error) {
+                        pushSpinner.fail('Failed to push');
+                        const err = error as Error;
+                        console.error(chalk.yellow(`\n⚠️  Push failed: ${err.message}`));
+                        // Don't exit with error, commit was successful
+                    }
+                }
+            }
         }
     } catch (error) {
         const err = error as Error;
