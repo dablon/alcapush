@@ -84,9 +84,9 @@ const extractFilePaths = (diff: string): string[] => {
 };
 
 /**
- * Filter out excluded file diffs from a git diff string
+ * Filter out excluded file diffs from a git diff string (optimized)
  */
-const filterDiffByFiles = (diff: string, excludedFiles: Set<string>): string => {
+const filterDiffByFiles = (diff: string, excludedFiles: Set<string>, filePathsMap: Map<number, string[]>): string => {
     if (excludedFiles.size === 0) {
         return diff;
     }
@@ -103,8 +103,8 @@ const filterDiffByFiles = (diff: string, excludedFiles: Set<string>): string => 
     
     for (let i = 1; i < diffChunks.length; i++) {
         const chunk = diffChunks[i];
-        const fullChunk = separator + chunk;
-        const filePaths = extractFilePaths(fullChunk);
+        // Use pre-extracted file paths if available
+        const filePaths = filePathsMap.get(i) || [];
         
         // Check if any file in this chunk should be excluded
         const shouldExclude = filePaths.some(path => excludedFiles.has(path));
@@ -128,8 +128,31 @@ export const filterDiff = async (
         return diff;
     }
     
-    // Extract file paths first (fast operation)
-    const filePaths = extractFilePaths(diff);
+    const separator = 'diff --git ';
+    const diffChunks = diff.split(separator);
+    
+    // Quick check: if no file diffs, return as-is
+    if (diffChunks.length <= 1) {
+        return diff;
+    }
+    
+    // Extract file paths and build map in one pass
+    const filePaths: string[] = [];
+    const filePathsMap = new Map<number, string[]>();
+    
+    for (let i = 1; i < diffChunks.length; i++) {
+        const chunk = diffChunks[i];
+        const firstNewline = chunk.indexOf('\n');
+        if (firstNewline > 0) {
+            const headerLine = separator + chunk.substring(0, firstNewline);
+            const match = headerLine.match(/^diff --git a\/(.+?) b\/(.+?)$/);
+            if (match) {
+                const filePath = match[2];
+                filePaths.push(filePath);
+                filePathsMap.set(i, [filePath]);
+            }
+        }
+    }
     
     // Quick check: if no file paths found, return as-is
     if (filePaths.length === 0) {
@@ -146,7 +169,7 @@ export const filterDiff = async (
     
     // Only check binary files if we haven't excluded everything already
     // and if the diff is large enough to warrant the git command
-    if (excludedFiles.size < filePaths.length && diff.length > 1000) {
+    if (excludedFiles.size < filePaths.length && diff.length > 5000) {
         const binaryFiles = await getBinaryFiles();
         for (const filePath of filePaths) {
             if (binaryFiles.has(filePath)) {
@@ -155,7 +178,7 @@ export const filterDiff = async (
         }
     }
     
-    // Filter the diff
-    return filterDiffByFiles(diff, excludedFiles);
+    // Filter the diff using pre-extracted paths
+    return filterDiffByFiles(diff, excludedFiles, filePathsMap);
 };
 

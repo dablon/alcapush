@@ -40,23 +40,37 @@ const generateCommitMessageByDiffInternal = async (
         // Quick check: if diff is small, skip expensive filtering/optimization
         const quickTokenEstimate = Math.ceil(diff.length / 4); // Rough approximation
         
+        // Only filter if diff is large enough to potentially have irrelevant files
+        // But always ensure we keep all relevant source files
         let filteredDiff: string;
-        if (quickTokenEstimate < MAX_REQUEST_TOKENS * 0.5) {
-            // Small diff - only do basic filtering, skip optimization
-            filteredDiff = await filterDiff(diff);
+        if (diff.length < 5000) {
+            // Very small diff - skip filtering entirely to preserve all files
+            filteredDiff = diff;
         } else {
-            // Large diff - do full filtering and optimization
+            // Do basic filtering (only remove truly irrelevant files like node_modules, binaries)
+            // Skip optimization to preserve all file information
             filteredDiff = await filterDiff(diff);
-            filteredDiff = optimizeDiff(filteredDiff);
         }
         
         if (!filteredDiff || filteredDiff.trim().length === 0) {
             throw new Error('No relevant changes to commit after filtering');
         }
 
-        // If diff is too large, split it
-        const filteredTokenCount = tokenCount(filteredDiff);
-        if (filteredTokenCount >= MAX_REQUEST_TOKENS) {
+        // Use approximation first to check if splitting is needed (faster)
+        const filteredTokenEstimate = Math.ceil(filteredDiff.length / 4);
+        let needsSplitting = false;
+        let filteredTokenCount = 0;
+        
+        if (filteredTokenEstimate >= MAX_REQUEST_TOKENS * 0.9) {
+            // Only do expensive token counting if approximation suggests we're close to limit
+            filteredTokenCount = tokenCount(filteredDiff);
+            needsSplitting = filteredTokenCount >= MAX_REQUEST_TOKENS;
+        } else {
+            // Use approximation - we're well under the limit
+            needsSplitting = false;
+        }
+        
+        if (needsSplitting) {
             const commitMessagePromises = await getCommitMsgsPromisesFromFileDiffs(
                 filteredDiff,
                 MAX_REQUEST_TOKENS,
@@ -65,8 +79,13 @@ const generateCommitMessageByDiffInternal = async (
 
             // Execute all API calls in parallel
             const commitMessages = await Promise.all(commitMessagePromises);
+            const message = commitMessages.filter((msg): msg is string => msg !== null && msg !== undefined).join('\n\n');
             
-            return commitMessages.filter((msg): msg is string => msg !== null && msg !== undefined).join('\n\n');
+            return {
+                message,
+                filteredDiff,
+                systemPrompt: INIT_MESSAGES_PROMPT
+            };
         }
 
         // Generate commit message for the whole diff

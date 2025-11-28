@@ -1,7 +1,6 @@
 import { OpenAI } from 'openai';
 import axios from 'axios';
 import { AiEngine, AiEngineConfig } from '../types';
-import { tokenCount } from '../utils/tokenCount';
 
 export class OpenAiEngine implements AiEngine {
     config: AiEngineConfig;
@@ -42,15 +41,15 @@ export class OpenAiEngine implements AiEngine {
         };
 
         try {
-            const REQUEST_TOKENS = messages
-                .map((msg) => tokenCount(msg.content as string) + 4)
+            // Skip token counting here - it's already done before calling this function
+            // Only do a quick length check as a safety measure
+            const totalLength = messages
+                .map((msg) => (msg.content as string)?.length || 0)
                 .reduce((a, b) => a + b, 0);
-
-            if (
-                REQUEST_TOKENS >
-                this.config.maxTokensInput - this.config.maxTokensOutput
-            ) {
-                throw new Error('Too many tokens in request');
+            
+            // Quick approximation: if text is way too large, reject early
+            if (totalLength > this.config.maxTokensInput * 4) {
+                throw new Error('Request too large');
             }
 
             const completion = await this.client.chat.completions.create(params);
@@ -75,15 +74,15 @@ export class OpenAiEngine implements AiEngine {
         messages: Array<OpenAI.Chat.Completions.ChatCompletionMessageParam>
     ): Promise<string | null> => {
         try {
-            const REQUEST_TOKENS = messages
-                .map((msg) => tokenCount(msg.content as string) + 4)
+            // Skip token counting here - it's already done before calling this function
+            // Only do a quick length check as a safety measure
+            const totalLength = messages
+                .map((msg) => (msg.content as string)?.length || 0)
                 .reduce((a, b) => a + b, 0);
-
-            if (
-                REQUEST_TOKENS >
-                this.config.maxTokensInput - this.config.maxTokensOutput
-            ) {
-                throw new Error('Too many tokens in request');
+            
+            // Quick approximation: if text is way too large, reject early
+            if (totalLength > this.config.maxTokensInput * 4) {
+                throw new Error('Request too large');
             }
 
             // Convert messages to GPT-5-nano format
@@ -118,18 +117,15 @@ export class OpenAiEngine implements AiEngine {
                     format: {
                         type: 'text'
                     },
-                    verbosity: 'medium'
+                    verbosity: 'low' // Lower verbosity for faster responses
                 },
                 reasoning: {
-                    effort: 'medium',
+                    effort: 'low', // Lower reasoning effort for faster responses
                     summary: 'auto'
                 },
                 tools: [],
-                store: true,
-                include: [
-                    'reasoning.encrypted_content',
-                    'web_search_call.action.sources'
-                ]
+                store: false, // Don't store to save time
+                include: [] // Skip unnecessary includes to reduce processing
             });
 
             // Extract response from GPT-5-nano format
