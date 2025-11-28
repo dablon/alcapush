@@ -5,19 +5,23 @@ import { getEngine } from './utils/engine';
 import { mergeDiffs } from './utils/mergeDiffs';
 import { tokenCount } from './utils/tokenCount';
 import { DEFAULT_TOKEN_LIMITS } from './types';
+import { filterDiff } from './utils/diffFilter';
+import { optimizeDiff } from './utils/diffOptimizer';
 
 const ADJUSTMENT_FACTOR = 20;
 
-export const generateCommitMessageByDiff = async (
+// Internal function that returns metadata along with the message
+const generateCommitMessageByDiffInternal = async (
     diff: string,
     fullGitMojiSpec: boolean = false,
     context: string = ''
-): Promise<string> => {
+): Promise<{ message: string; filteredDiff: string; systemPrompt: Array<OpenAI.Chat.Completions.ChatCompletionMessageParam> }> => {
     try {
         const config = getConfig();
         const MAX_TOKENS_INPUT = config.ACP_TOKENS_MAX_INPUT;
         const MAX_TOKENS_OUTPUT = config.ACP_TOKENS_MAX_OUTPUT;
 
+        // Generate system prompt first (needed for token calculation)
         const INIT_MESSAGES_PROMPT = await getMainCommitPrompt(
             fullGitMojiSpec,
             context
@@ -33,31 +37,46 @@ export const generateCommitMessageByDiff = async (
             INIT_MESSAGES_PROMPT_LENGTH -
             MAX_TOKENS_OUTPUT;
 
+        // Quick check: if diff is small, skip expensive filtering/optimization
+        const quickTokenEstimate = Math.ceil(diff.length / 4); // Rough approximation
+        
+        let filteredDiff: string;
+        if (quickTokenEstimate < MAX_REQUEST_TOKENS * 0.5) {
+            // Small diff - only do basic filtering, skip optimization
+            filteredDiff = await filterDiff(diff);
+        } else {
+            // Large diff - do full filtering and optimization
+            filteredDiff = await filterDiff(diff);
+            filteredDiff = optimizeDiff(filteredDiff);
+        }
+        
+        if (!filteredDiff || filteredDiff.trim().length === 0) {
+            throw new Error('No relevant changes to commit after filtering');
+        }
+
         // If diff is too large, split it
-        if (tokenCount(diff) >= MAX_REQUEST_TOKENS) {
+        const filteredTokenCount = tokenCount(filteredDiff);
+        if (filteredTokenCount >= MAX_REQUEST_TOKENS) {
             const commitMessagePromises = await getCommitMsgsPromisesFromFileDiffs(
-                diff,
+                filteredDiff,
                 MAX_REQUEST_TOKENS,
-                fullGitMojiSpec,
-                context
+                INIT_MESSAGES_PROMPT
             );
 
-            const commitMessages: string[] = [];
-            for (const promise of commitMessagePromises) {
-                const msg = await promise;
-                if (msg) commitMessages.push(msg);
-                await delay(1000); // Rate limiting
-            }
-
-            return commitMessages.join('\n\n');
+            // Execute all API calls in parallel
+            const commitMessages = await Promise.all(commitMessagePromises);
+            
+            return commitMessages.filter((msg): msg is string => msg !== null && msg !== undefined).join('\n\n');
         }
 
         // Generate commit message for the whole diff
-        const messages = await generateCommitMessageChatCompletionPrompt(
-            diff,
-            fullGitMojiSpec,
-            context
-        );
+        const messages: Array<OpenAI.Chat.Completions.ChatCompletionMessageParam> = [
+            ...INIT_MESSAGES_PROMPT,
+            {
+                role: 'user',
+                content: getCommitMessageFromDiff(filteredDiff)
+            }
+        ];
 
         const engine = getEngine();
         const commitMessage = await engine.generateCommitMessage(messages);
@@ -66,37 +85,34 @@ export const generateCommitMessageByDiff = async (
             throw new Error('Failed to generate commit message');
         }
 
-        return commitMessage;
+        return {
+            message: commitMessage,
+            filteredDiff,
+            systemPrompt: INIT_MESSAGES_PROMPT
+        };
     } catch (error) {
         throw error;
     }
 };
 
-const generateCommitMessageChatCompletionPrompt = async (
+// Public API - returns just the message
+export const generateCommitMessageByDiff = async (
     diff: string,
-    fullGitMojiSpec: boolean,
-    context: string
-): Promise<Array<OpenAI.Chat.Completions.ChatCompletionMessageParam>> => {
-    const INIT_MESSAGES_PROMPT = await getMainCommitPrompt(
-        fullGitMojiSpec,
-        context
-    );
-
-    const chatContextAsCompletionRequest = [...INIT_MESSAGES_PROMPT];
-
-    chatContextAsCompletionRequest.push({
-        role: 'user',
-        content: getCommitMessageFromDiff(diff)
-    });
-
-    return chatContextAsCompletionRequest;
+    fullGitMojiSpec: boolean = false,
+    context: string = ''
+): Promise<string> => {
+    const result = await generateCommitMessageByDiffInternal(diff, fullGitMojiSpec, context);
+    return result.message;
 };
+
+// Public API - returns message with metadata
+export const generateCommitMessageByDiffWithMetadata = generateCommitMessageByDiffInternal;
+
 
 const getCommitMsgsPromisesFromFileDiffs = async (
     diff: string,
     maxDiffLength: number,
-    fullGitMojiSpec: boolean,
-    context: string
+    systemPrompt: Array<OpenAI.Chat.Completions.ChatCompletionMessageParam>
 ): Promise<Array<Promise<string | null | undefined>>> => {
     const separator = 'diff --git ';
     const diffByFiles = diff.split(separator).slice(1);
@@ -105,21 +121,21 @@ const getCommitMsgsPromisesFromFileDiffs = async (
     const mergedFilesDiffs = mergeDiffs(diffByFiles, maxDiffLength);
 
     const commitMessagePromises: Promise<string | null | undefined>[] = [];
+    const engine = getEngine();
 
     for (const fileDiff of mergedFilesDiffs) {
-        const messages = await generateCommitMessageChatCompletionPrompt(
-            separator + fileDiff,
-            fullGitMojiSpec,
-            context
-        );
+        // Reuse the system prompt and only add the diff as user message
+        const messages: Array<OpenAI.Chat.Completions.ChatCompletionMessageParam> = [
+            ...systemPrompt,
+            {
+                role: 'user',
+                content: getCommitMessageFromDiff(separator + fileDiff)
+            }
+        ];
 
-        const engine = getEngine();
         commitMessagePromises.push(engine.generateCommitMessage(messages));
     }
 
     return commitMessagePromises;
 };
 
-const delay = (ms: number): Promise<void> => {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-};

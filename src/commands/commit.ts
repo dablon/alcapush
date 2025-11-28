@@ -77,7 +77,7 @@ export const commit = async (
             process.exit(1);
         }
 
-        // Estimate cost and tokens before generating
+        // Quick cost estimation before generating (using fast approximation)
         const costEstimate = await estimateCost(diff, fullGitMojiSpec, context);
         
         // Show confirmation with cost and token information
@@ -109,6 +109,7 @@ export const commit = async (
         // Generate commit message
         const spinner = ora('Generating commit message...').start();
         let commitMessage: string;
+        const startTime = Date.now();
 
         try {
             commitMessage = await generateCommitMessageByDiff(
@@ -116,7 +117,8 @@ export const commit = async (
                 fullGitMojiSpec,
                 context
             );
-            spinner.succeed('Commit message generated');
+            const elapsedTime = ((Date.now() - startTime) / 1000).toFixed(2);
+            spinner.succeed(`Commit message generated (${elapsedTime}s)`);
         } catch (error) {
             spinner.fail('Failed to generate commit message');
             throw error;
@@ -151,17 +153,20 @@ export const commit = async (
             throw error;
         }
 
-        // Ask to push if remote exists and not in hook mode
+        // Ask to push if not in hook mode
         if (!isHook) {
-            const hasRemoteRepo = await hasRemote();
-            if (hasRemoteRepo) {
-                const currentBranch = await getCurrentBranch();
-                const shouldPush = await p.confirm({
-                    message: `Push to remote (${currentBranch})?`,
-                    initialValue: true
-                });
+            const currentBranch = await getCurrentBranch();
+            const shouldPush = await p.confirm({
+                message: `Push changes to remote (${currentBranch})?`,
+                initialValue: true
+            });
 
-                if (!p.isCancel(shouldPush) && shouldPush) {
+            if (!p.isCancel(shouldPush) && shouldPush) {
+                // Check if remote exists before attempting push
+                const hasRemoteRepo = await hasRemote();
+                if (!hasRemoteRepo) {
+                    console.log(chalk.yellow('⚠️  No remote repository configured. Skipping push.'));
+                } else {
                     const pushSpinner = ora('Pushing to remote...').start();
                     try {
                         await push();
@@ -173,6 +178,8 @@ export const commit = async (
                         // Don't exit with error, commit was successful
                     }
                 }
+            } else if (p.isCancel(shouldPush)) {
+                console.log(chalk.yellow('Push cancelled.'));
             }
         }
     } catch (error) {

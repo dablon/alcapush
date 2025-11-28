@@ -37,21 +37,26 @@ const DEFAULT_PRICING = { input: 1, output: 3 }; // Fallback pricing
 export const estimateCost = async (
     diff: string,
     fullGitMojiSpec: boolean = false,
-    context: string = ''
+    context: string = '',
+    systemPrompt?: Array<any> // Optional: reuse prompt if already generated
 ): Promise<CostEstimate> => {
     const config = getConfig();
     const provider = config.ACP_AI_PROVIDER || AIProvider.OPENAI;
     const model = config.ACP_MODEL || 'gpt-5-nano';
     const maxOutputTokens = config.ACP_TOKENS_MAX_OUTPUT || 500;
 
-    // Calculate input tokens
-    const initMessagesPrompt = await getMainCommitPrompt(fullGitMojiSpec, context);
+    // Reuse system prompt if provided, otherwise generate it
+    const initMessagesPrompt = systemPrompt || await getMainCommitPrompt(fullGitMojiSpec, context);
     const initPromptTokens = initMessagesPrompt
         .map((msg) => tokenCount(msg.content as string) + 4)
         .reduce((a, b) => a + b, 0);
     
-    const diffPrompt = getCommitMessageFromDiff(diff);
-    const diffTokens = tokenCount(diffPrompt);
+    // Use fast approximation for large diffs to avoid expensive token counting
+    // For cost estimation, we don't need exact counts
+    const diffLength = diff.length;
+    const diffTokens = diffLength > 20000 
+        ? Math.ceil(diffLength / 4) // Fast approximation for large diffs
+        : tokenCount(getCommitMessageFromDiff(diff));
     
     const inputTokens = initPromptTokens + diffTokens;
     const outputTokens = maxOutputTokens; // We'll use max as estimate
