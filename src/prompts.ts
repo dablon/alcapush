@@ -31,7 +31,10 @@ Follow the Conventional Commits specification:
 - Types: feat, fix, docs, style, refactor, test, chore, perf, ci, build, revert
 - Keep the subject line under 72 characters
 - Use imperative mood ("Add feature" not "Added feature")
-- Be specific and descriptive`;
+- Be specific and descriptive
+- Group related changes together logically
+- Use bullet points for multiple changes, but keep them concise
+- Focus on what changed and why, not implementation details`;
 
     if (useEmoji) {
         systemPrompt += `\n\nPrefix each commit with an appropriate GitMoji emoji:
@@ -41,10 +44,12 @@ ${Object.entries(GITMOJI_SPEC)
     }
 
     if (useDescription && !oneLine) {
-        systemPrompt += `\n\nAfter the subject line, add a blank line and then a detailed description (2-3 sentences) explaining:
-- What changed
-- Why the change was made
-- Any important context or implications`;
+        systemPrompt += `\n\nAfter the subject line, add a blank line and then a detailed description:
+- List all modified files and their key changes (be comprehensive but concise)
+- Group related files together
+- Use bullet points, one per file or logical group
+- Focus on the purpose and impact of changes, not code details
+- Keep each bullet point to 1-2 lines maximum`;
     }
 
     if (oneLine) {
@@ -59,7 +64,12 @@ ${Object.entries(GITMOJI_SPEC)
         systemPrompt += `\n\nAdditional context: ${context}`;
     }
 
-    systemPrompt += `\n\nAnalyze the git diff and generate an appropriate commit message. Return ONLY the commit message, nothing else.`;
+    systemPrompt += `\n\nAnalyze the git diff and generate an appropriate commit message that covers ALL changes in ALL files. 
+- Make sure to mention every modified file shown in the diff
+- Group related files logically (e.g., all utils together, all commands together)
+- Be concise but comprehensive - mention what each file does, not how
+- Use clear, professional language
+- Return ONLY the commit message, nothing else.`;
 
     return [
         {
@@ -70,5 +80,10 @@ ${Object.entries(GITMOJI_SPEC)
 };
 
 export const getCommitMessageFromDiff = (diff: string): string => {
-    return `Here is the git diff:\n\n${diff}\n\nGenerate a commit message for these changes.`;
+    return `Here is the git diff showing changes across multiple files:\n\n${diff}\n\nGenerate a comprehensive commit message that:
+1. Covers ALL changes in ALL files shown in the diff
+2. Mentions every modified file
+3. Groups related files together logically
+4. Is concise but complete - focus on what changed, not implementation details
+5. Uses clear bullet points for organization`;
 };

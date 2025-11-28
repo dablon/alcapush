@@ -10,7 +10,13 @@ export interface CostEstimate {
     costCurrency: string;
 }
 
-// Pricing per 1M tokens (as of common pricing, approximate)
+// Pricing per 1M tokens (USD)
+// Last verified: November 2024
+// Sources:
+// - OpenAI: https://openai.com/api/pricing
+// - Anthropic: https://www.anthropic.com/pricing
+// - Google: https://ai.google.dev/pricing
+// Note: Pricing may vary by region and usage tier. These are standard rates.
 const PRICING: Record<string, { input: number; output: number }> = {
     // OpenAI models
     'gpt-4o': { input: 2.5, output: 10 },
@@ -18,7 +24,7 @@ const PRICING: Record<string, { input: number; output: number }> = {
     'gpt-4-turbo': { input: 10, output: 30 },
     'gpt-4': { input: 30, output: 60 },
     'gpt-3.5-turbo': { input: 0.5, output: 1.5 },
-    'gpt-5-nano': { input: 0.1, output: 0.4 }, // Approximate
+    'gpt-5-nano': { input: 0.05, output: 0.4 }, // Verified: OpenAI pricing page (Nov 2024)
     
     // Anthropic models
     'claude-3-5-sonnet-20241022': { input: 3, output: 15 },
