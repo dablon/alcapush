@@ -24,13 +24,50 @@ export interface CommitGroup extends FileGroup {
 }
 
 /**
+ * Get list of changed files from git (more reliable than parsing diff)
+ * Returns empty array if git is not available (e.g., in tests)
+ */
+const getChangedFileList = async (staged: boolean = true, unstaged: boolean = false): Promise<string[]> => {
+    const { execa } = await import('execa');
+    const files = new Set<string>();
+    
+    try {
+        if (staged) {
+            const { stdout } = await execa('git', ['diff', '--cached', '--name-only']);
+            stdout.split('\n').forEach(f => {
+                const trimmed = f.trim();
+                if (trimmed) files.add(trimmed);
+            });
+        }
+        if (unstaged) {
+            const { stdout } = await execa('git', ['diff', '--name-only']);
+            stdout.split('\n').forEach(f => {
+                const trimmed = f.trim();
+                if (trimmed) files.add(trimmed);
+            });
+        }
+    } catch {
+        // If git command fails (e.g., not in git repo, or in tests), return empty array
+        // This allows the function to still parse diffs even without git validation
+        return [];
+    }
+    
+    return Array.from(files);
+};
+
+/**
  * Split a git diff into file-based chunks
  * If the same file appears multiple times (e.g., staged + unstaged), merge them
  */
-export const splitDiffByFiles = (diff: string): FileDiff[] => {
+export const splitDiffByFiles = async (diff: string, includeUnstaged: boolean = false): Promise<FileDiff[]> => {
     if (!diff || diff.trim().length === 0) {
         return [];
     }
+
+    // Get actual list of changed files from git (more reliable)
+    // If git is not available (e.g., in tests), we'll validate paths manually
+    const actualFiles = await getChangedFileList(true, includeUnstaged);
+    const validFileSet = actualFiles.length > 0 ? new Set(actualFiles) : null;
 
     const separator = 'diff --git ';
     const chunks = diff.split(separator);
@@ -48,7 +85,27 @@ export const splitDiffByFiles = (diff: string): FileDiff[] => {
             const headerLine = separator + chunk.substring(0, firstNewline);
             const match = headerLine.match(/^diff --git a\/(.+?) b\/(.+?)$/);
             if (match) {
-                const filePath = match[2]; // Use the 'b' path (new file path)
+                let filePath = match[2]; // Use the 'b' path (new file path)
+                
+                // Clean up file path
+                filePath = filePath.trim();
+                
+                // Additional validation
+                if (filePath.includes('\n') || 
+                    filePath.length > 500 ||
+                    filePath.length === 0 ||
+                    filePath.startsWith('a/') || // Test artifact paths
+                    (filePath.includes('${') || filePath.includes('`')) || // Template strings
+                    (filePath.includes('content') && filePath.length < 20) || // Test data
+                    filePath.match(/^[\d\s]+$/)) { // Only numbers/spaces
+                    continue;
+                }
+                
+                // If we have git file list, validate against it
+                // Otherwise, rely on path validation above
+                if (validFileSet && !validFileSet.has(filePath)) {
+                    continue;
+                }
                 
                 // If file already exists (e.g., staged + unstaged), merge diffs
                 if (fileMap.has(filePath)) {

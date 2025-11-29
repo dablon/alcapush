@@ -125,7 +125,7 @@ export const batchCommand = command(
 
             // Split diff into files
             const spinner = ora('Analyzing changes...').start();
-            const fileDiffs = splitDiffByFiles(diff);
+            const fileDiffs = await splitDiffByFiles(diff, argv.flags.all);
             spinner.succeed(`Found ${fileDiffs.length} file(s) with changes`);
 
             if (fileDiffs.length === 0) {
@@ -299,7 +299,20 @@ export const batchCommand = command(
                 
                 try {
                     // Stage only the files in this group
-                    const filePaths = group.files.map(f => f.filePath);
+                    const filePaths = group.files.map(f => f.filePath).filter(fp => {
+                        // Basic validation - skip obviously invalid paths
+                        return fp && 
+                               !fp.includes('\n') && 
+                               !fp.includes('${') &&
+                               fp.length < 500 &&
+                               (fp.startsWith('/') || fp.match(/^[\w\.\-]/));
+                    });
+                    
+                    if (filePaths.length === 0) {
+                        console.warn(chalk.yellow(`⚠️  No valid files to commit in group: ${group.name}`));
+                        continue;
+                    }
+                    
                     await stageFiles(filePaths);
 
                     // Commit
@@ -314,6 +327,9 @@ export const batchCommand = command(
                     commitSpinner.fail(`Failed to commit ${group.name}`);
                     const err = error as Error;
                     console.error(chalk.red(`Error: ${err.message}`));
+                    // Show which files were attempted
+                    const attemptedFiles = group.files.map(f => f.filePath).join(', ');
+                    console.error(chalk.dim(`Files: ${attemptedFiles}`));
                     // Continue with next commit
                 }
             }
