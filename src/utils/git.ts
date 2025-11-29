@@ -31,9 +31,28 @@ export const commit = async (
     extraArgs: string[] = []
 ): Promise<void> => {
     try {
+        // Check if there's anything staged first
+        const { stdout: stagedFiles } = await execa('git', ['diff', '--cached', '--name-only'], { reject: false });
+        if (!stagedFiles || stagedFiles.trim().length === 0) {
+            throw new Error('No changes staged for commit');
+        }
+        
         await execa('git', ['commit', '-m', message, ...extraArgs]);
     } catch (error) {
-        throw new Error('Failed to commit changes');
+        const err = error as Error;
+        if (err.message.includes('No changes staged')) {
+            throw err;
+        }
+        // Try to get more details from git error
+        try {
+            const { stderr } = error as any;
+            if (stderr && stderr.includes('nothing to commit')) {
+                throw new Error('No changes to commit (files may have been committed already)');
+            }
+        } catch {
+            // Fall through to generic error
+        }
+        throw new Error(`Failed to commit changes: ${err.message}`);
     }
 };
 

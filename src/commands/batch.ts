@@ -126,6 +126,13 @@ export const batchCommand = command(
             // Split diff into files
             const spinner = ora('Analyzing changes...').start();
             const fileDiffs = await splitDiffByFiles(diff, argv.flags.all);
+            
+            if (fileDiffs.length === 0) {
+                spinner.fail('No file changes detected');
+                console.error(chalk.red('❌ No file changes detected in diff.'));
+                process.exit(1);
+            }
+            
             spinner.succeed(`Found ${fileDiffs.length} file(s) with changes`);
 
             if (fileDiffs.length === 0) {
@@ -262,10 +269,33 @@ export const batchCommand = command(
                 branchContext
             );
             generateSpinner.succeed(`Generated ${commitGroups.length} commit message(s)`);
+            
+            // Filter out groups that have no valid files
+            const validCommitGroups = commitGroups.filter(group => {
+                const validFiles = group.files.filter(f => {
+                    const fp = f.filePath;
+                    return fp && 
+                           !fp.includes('\n') && 
+                           !fp.includes('${') &&
+                           fp.length < 500 &&
+                           fp.length > 0 &&
+                           (fp.startsWith('/') || fp.match(/^[\w\.\-]/));
+                });
+                return validFiles.length > 0;
+            });
+            
+            if (validCommitGroups.length === 0) {
+                console.error(chalk.red('❌ No valid files to commit in any group.'));
+                process.exit(1);
+            }
+            
+            if (validCommitGroups.length < commitGroups.length) {
+                console.warn(chalk.yellow(`⚠️  Filtered out ${commitGroups.length - validCommitGroups.length} group(s) with invalid files.`));
+            }
 
             // Display preview
-            console.log(chalk.cyan('\n📝 Commit Messages:\n'));
-            commitGroups.forEach((group, index) => {
+            console.log(chalk.cyan(`\n📝 Commit Messages (${validCommitGroups.length} commit(s)):\n`));
+            validCommitGroups.forEach((group, index) => {
                 console.log(
                     chalk.gray(`${(index + 1).toString().padStart(3)}. `) +
                     chalk.white(chalk.bold(group.name))
@@ -280,7 +310,7 @@ export const batchCommand = command(
             // Confirm before proceeding (unless --yes flag)
             if (!argv.flags.yes) {
                 const shouldProceed = await p.confirm({
-                    message: `Proceed with ${commitGroups.length} commit(s)?`,
+                    message: `Proceed with ${validCommitGroups.length} commit(s)?`,
                     initialValue: true
                 });
 
@@ -294,8 +324,8 @@ export const batchCommand = command(
             const commitSpinner = ora('Committing changes...').start();
             let successCount = 0;
 
-            for (let i = 0; i < commitGroups.length; i++) {
-                const group = commitGroups[i];
+            for (let i = 0; i < validCommitGroups.length; i++) {
+                const group = validCommitGroups[i];
                 
                 try {
                     // Stage only the files in this group
@@ -305,6 +335,7 @@ export const batchCommand = command(
                                !fp.includes('\n') && 
                                !fp.includes('${') &&
                                fp.length < 500 &&
+                               fp.length > 0 &&
                                (fp.startsWith('/') || fp.match(/^[\w\.\-]/));
                     });
                     
@@ -313,15 +344,46 @@ export const batchCommand = command(
                         continue;
                     }
                     
-                    await stageFiles(filePaths);
+                    // Check if files have changes before staging
+                    const { execa } = await import('execa');
+                    const filesWithChanges: string[] = [];
+                    
+                    for (const filePath of filePaths) {
+                        try {
+                            // Check if file has staged or unstaged changes
+                            const { stdout: staged } = await execa('git', ['diff', '--cached', '--name-only', '--', filePath], { reject: false });
+                            const { stdout: unstaged } = await execa('git', ['diff', '--name-only', '--', filePath], { reject: false });
+                            
+                            if (staged.trim() === filePath || unstaged.trim() === filePath) {
+                                filesWithChanges.push(filePath);
+                            }
+                        } catch {
+                            // File might be new, try to stage it anyway
+                            filesWithChanges.push(filePath);
+                        }
+                    }
+                    
+                    if (filesWithChanges.length === 0) {
+                        console.warn(chalk.yellow(`⚠️  No changes to commit in group: ${group.name} (files may have been committed already)`));
+                        continue;
+                    }
+                    
+                    await stageFiles(filesWithChanges);
+
+                    // Verify we have something staged to commit
+                    const { stdout: stagedDiff } = await execa('git', ['diff', '--cached', '--name-only'], { reject: false });
+                    if (!stagedDiff || stagedDiff.trim().length === 0) {
+                        console.warn(chalk.yellow(`⚠️  Nothing staged for commit in group: ${group.name}`));
+                        continue;
+                    }
 
                     // Commit
                     await gitCommit(group.message);
                     saveCommitToHistory(group.message, currentBranch);
                     successCount++;
 
-                    if (i < commitGroups.length - 1) {
-                        commitSpinner.text = `Committed ${successCount}/${commitGroups.length}...`;
+                    if (i < validCommitGroups.length - 1) {
+                        commitSpinner.text = `Committed ${successCount}/${validCommitGroups.length}...`;
                     }
                 } catch (error) {
                     commitSpinner.fail(`Failed to commit ${group.name}`);
@@ -334,7 +396,7 @@ export const batchCommand = command(
                 }
             }
 
-            commitSpinner.succeed(chalk.green(`✅ Successfully committed ${successCount} of ${commitGroups.length} commit(s)!`));
+            commitSpinner.succeed(chalk.green(`✅ Successfully committed ${successCount} of ${validCommitGroups.length} commit(s)!`));
 
             // Ask to push (unless --yes flag)
             if (!argv.flags.yes) {
