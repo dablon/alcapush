@@ -8,6 +8,7 @@ import {
     isGitRepository,
     hasChanges,
     stageFiles,
+    unstageFiles,
     commit as gitCommit,
     getCurrentBranch,
     hasRemote,
@@ -411,7 +412,18 @@ export const batchCommand = command(
                         continue;
                     }
                     
-                    // Stage the files
+                    // IMPORTANT: Unstage ALL currently staged files first
+                    // This ensures we only commit the files for this specific group
+                    const { stdout: currentlyStaged } = await execaImport('git', ['diff', '--cached', '--name-only'], { reject: false });
+                    if (currentlyStaged) {
+                        const stagedFiles = currentlyStaged.split('\n').map(f => f.trim()).filter(f => f);
+                        if (stagedFiles.length > 0) {
+                            // Unstage everything first
+                            await unstageFiles(stagedFiles);
+                        }
+                    }
+                    
+                    // Now stage only the files for this group
                     await stageFiles(filePaths);
 
                     // Verify we have something staged to commit
