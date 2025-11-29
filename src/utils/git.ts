@@ -94,3 +94,45 @@ export const push = async (remote?: string, branch?: string): Promise<void> => {
         throw new Error('Failed to push changes');
     }
 };
+
+/**
+ * Stage specific files
+ */
+export const stageFiles = async (files: string[]): Promise<void> => {
+    if (files.length === 0) {
+        return;
+    }
+    try {
+        await execa('git', ['add', ...files]);
+    } catch (error) {
+        throw new Error('Failed to stage files');
+    }
+};
+
+/**
+ * Unstage specific files
+ */
+export const unstageFiles = async (files: string[]): Promise<void> => {
+    if (files.length === 0) {
+        return;
+    }
+    try {
+        await execa('git', ['reset', 'HEAD', '--', ...files]);
+    } catch (error) {
+        throw new Error('Failed to unstage files');
+    }
+};
+
+/**
+ * Get diff for a specific file (staged or unstaged)
+ */
+export const getFileDiff = async (file: string, staged: boolean = true): Promise<string> => {
+    try {
+        const args = staged ? ['diff', '--cached', '--', file] : ['diff', '--', file];
+        const { stdout } = await execa('git', args);
+        return stdout;
+    } catch (error) {
+        // File might not have changes, return empty string
+        return '';
+    }
+};

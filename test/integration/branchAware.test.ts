@@ -66,7 +66,7 @@ describe('Branch-Aware Commit Integration Tests', () => {
             const mockEngine = getEngine();
             mockEngine.setResponse('feat', 'feat(auth): add user authentication');
 
-            const output = execSync(
+            execSync(
                 `node ${cliPath} --yes`,
                 { encoding: 'utf-8', cwd: testRepo.repoPath }
             );
@@ -125,7 +125,7 @@ describe('Branch-Aware Commit Integration Tests', () => {
             const mockEngine = getEngine();
             mockEngine.setResponse('fix', 'fix(login): resolve login bug');
 
-            const output = execSync(
+            execSync(
                 `node ${cliPath} --yes`,
                 { encoding: 'utf-8', cwd: testRepo.repoPath }
             );

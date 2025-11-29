@@ -3,6 +3,7 @@ import { commit } from './commands/commit';
 import { configCommand } from './commands/config';
 import { hookCommand } from './commands/hook';
 import { historyCommand, favoriteCommand } from './commands/history';
+import { batchCommand } from './commands/batch';
 import chalk from 'chalk';
 import { readFileSync } from 'fs';
 import { join } from 'path';
@@ -47,7 +48,7 @@ cli(
     {
         version: packageJSON.version,
         name: 'alcapush',
-        commands: [configCommand, hookCommand, historyCommand, favoriteCommand],
+        commands: [configCommand, hookCommand, historyCommand, favoriteCommand, batchCommand],
         flags: {
             fgm: {
                 type: Boolean,
@@ -96,6 +97,10 @@ ${chalk.cyan('Usage:')}
             ${chalk.white('acp favorite add MSG')}   Add message to favorites
             ${chalk.white('acp favorite remove MSG')} Remove message from favorites
             ${chalk.white('acp favorite list')}      List all favorites
+            ${chalk.white('acp batch <N>')}          Split changes into N commits (AI-powered)
+            ${chalk.white('acp batch 3')}             Split into 3 logical commits
+            ${chalk.white('acp batch 3 --all')}      Include unstaged changes
+            ${chalk.white('acp batch 3 --yes')}      Auto-commit without confirmation
 
 ${chalk.cyan('Examples:')}
   ${chalk.gray('# First time setup')}
@@ -114,13 +119,19 @@ ${chalk.cyan('Examples:')}
   
   ${chalk.gray('# Quick commit without confirmation')}
   ${chalk.white('acp --yes')}
+  
+  ${chalk.gray('# Split large diff into multiple commits')}
+  ${chalk.white('acp batch')}
+  
+  ${chalk.gray('# Batch commit with directory grouping')}
+  ${chalk.white('acp batch --group-by directory')}
 `
         }
     },
     async (argv) => {
-        // If a command was matched (config, hook, history, favorite), don't run the default commit handler
+        // If a command was matched (config, hook, history, favorite, batch), don't run the default commit handler
         // Commands are handled by cleye automatically, but check argv._ to be safe
-        if (argv._.length > 0 && (argv._[0] === 'config' || argv._[0] === 'hook' || argv._[0] === 'history' || argv._[0] === 'favorite')) {
+        if (argv._.length > 0 && (argv._[0] === 'config' || argv._[0] === 'hook' || argv._[0] === 'history' || argv._[0] === 'favorite' || argv._[0] === 'batch')) {
             return;
         }
         

@@ -75,6 +75,10 @@ export class TestGitRepo {
     }
   }
 
+  async runGit(args: string[]): Promise<void> {
+    execSync(`git ${args.join(' ')}`, { stdio: 'pipe', cwd: this.repoPath });
+  }
+
   async cleanup(): Promise<void> {
     process.chdir(this.originalCwd);
     if (existsSync(this.repoPath)) {
