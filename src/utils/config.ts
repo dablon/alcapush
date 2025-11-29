@@ -1,5 +1,5 @@
 import { homedir } from 'os';
-import { existsSync, readFileSync, writeFileSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync, statSync, mkdirSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import ini from 'ini';
 import {
@@ -9,13 +9,68 @@ import {
     DEFAULT_TOKEN_LIMITS
 } from '../types';
 
-const CONFIG_FILE_PATH = join(homedir(), '.alcapush');
+const CONFIG_DIR = join(homedir(), '.alcapush');
+const CONFIG_FILE_PATH = join(CONFIG_DIR, 'config.ini');
+
+// Ensure config directory exists
+const ensureConfigDir = (): void => {
+    if (!existsSync(CONFIG_DIR)) {
+        mkdirSync(CONFIG_DIR, { recursive: true });
+    } else {
+        // Check if .alcapush exists as a file (old format) and migrate it
+        try {
+            const stat = statSync(CONFIG_DIR);
+            if (stat.isFile()) {
+                // Migrate old config file to new location
+                try {
+                    const oldConfig = readFileSync(CONFIG_DIR, 'utf-8');
+                    // Create directory first (will fail if file exists, so remove it)
+                    unlinkSync(CONFIG_DIR); // Remove old file
+                    mkdirSync(CONFIG_DIR, { recursive: true });
+                    writeFileSync(CONFIG_FILE_PATH, oldConfig);
+                } catch (error) {
+                    // If migration fails, try to clean up and create directory
+                    try {
+                        if (existsSync(CONFIG_DIR)) {
+                            unlinkSync(CONFIG_DIR);
+                        }
+                        mkdirSync(CONFIG_DIR, { recursive: true });
+                    } catch {
+                        // Ignore errors during cleanup
+                    }
+                }
+            } else if (stat.isDirectory()) {
+                // Already a directory, which is correct - ensure config file can be created
+                // (directory already exists, so nothing to do)
+            }
+        } catch (error) {
+            // If stat fails, assume it doesn't exist and create directory
+            try {
+                mkdirSync(CONFIG_DIR, { recursive: true });
+            } catch {
+                // Ignore errors
+            }
+        }
+    }
+};
+
+// Check if path exists and is a file
+const isFile = (path: string): boolean => {
+    try {
+        return existsSync(path) && statSync(path).isFile();
+    } catch {
+        return false;
+    }
+};
 
 export const getConfig = (): Required<alcapushConfig> => {
     const config = { ...DEFAULT_CONFIG } as alcapushConfig;
 
+    // Ensure config directory exists (and migrate old config if needed)
+    ensureConfigDir();
+
     // Read from config file if exists
-    if (existsSync(CONFIG_FILE_PATH)) {
+    if (isFile(CONFIG_FILE_PATH)) {
         try {
             const fileConfig = ini.parse(readFileSync(CONFIG_FILE_PATH, 'utf-8'));
             Object.assign(config, fileConfig);
@@ -110,7 +165,10 @@ export const getConfig = (): Required<alcapushConfig> => {
 };
 
 export const setConfig = (key: string, value: string): void => {
-    const config = existsSync(CONFIG_FILE_PATH)
+    // Ensure config directory exists (and migrate old config if needed)
+    ensureConfigDir();
+
+    const config = isFile(CONFIG_FILE_PATH)
         ? ini.parse(readFileSync(CONFIG_FILE_PATH, 'utf-8'))
         : {};
 
