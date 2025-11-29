@@ -1,6 +1,7 @@
 import { OpenAI } from 'openai';
 import axios from 'axios';
 import { AiEngine, AiEngineConfig } from '../types';
+import { tokenCount } from '../utils/tokenCount';
 
 export class OpenAiEngine implements AiEngine {
     config: AiEngineConfig;
@@ -41,15 +42,20 @@ export class OpenAiEngine implements AiEngine {
         };
 
         try {
-            // Skip token counting here - it's already done before calling this function
-            // Only do a quick length check as a safety measure
-            const totalLength = messages
-                .map((msg) => (msg.content as string)?.length || 0)
-                .reduce((a, b) => a + b, 0);
+            // Final safety check: validate token count before sending to API
+            let totalTokens = 0;
+            for (const msg of messages) {
+                const content = msg.content as string;
+                if (content) {
+                    totalTokens += tokenCount(content) + 4; // +4 for message overhead
+                }
+            }
             
-            // Quick approximation: if text is way too large, reject early
-            if (totalLength > this.config.maxTokensInput * 4) {
-                throw new Error('Request too large');
+            if (totalTokens > this.config.maxTokensInput) {
+                throw new Error(
+                    `Request too large: ${totalTokens} tokens exceeds limit of ${this.config.maxTokensInput} tokens. ` +
+                    `Please reduce the diff size or increase ACP_TOKENS_MAX_INPUT.`
+                );
             }
 
             const completion = await this.client.chat.completions.create(params);
@@ -74,15 +80,20 @@ export class OpenAiEngine implements AiEngine {
         messages: Array<OpenAI.Chat.Completions.ChatCompletionMessageParam>
     ): Promise<string | null> => {
         try {
-            // Skip token counting here - it's already done before calling this function
-            // Only do a quick length check as a safety measure
-            const totalLength = messages
-                .map((msg) => (msg.content as string)?.length || 0)
-                .reduce((a, b) => a + b, 0);
+            // Final safety check: validate token count before sending to API
+            let totalTokens = 0;
+            for (const msg of messages) {
+                const content = msg.content as string;
+                if (content) {
+                    totalTokens += tokenCount(content) + 4; // +4 for message overhead
+                }
+            }
             
-            // Quick approximation: if text is way too large, reject early
-            if (totalLength > this.config.maxTokensInput * 4) {
-                throw new Error('Request too large');
+            if (totalTokens > this.config.maxTokensInput) {
+                throw new Error(
+                    `Request too large: ${totalTokens} tokens exceeds limit of ${this.config.maxTokensInput} tokens. ` +
+                    `Please reduce the diff size or increase ACP_TOKENS_MAX_INPUT.`
+                );
             }
 
             // Convert messages to GPT-5-nano format
