@@ -23,6 +23,7 @@
 - 📜 **Commit History**: View and manage your commit message history
 - ⭐ **Favorites**: Save frequently used commit message patterns
 - 🌿 **Branch-Aware**: Automatically includes branch context in commit messages
+- 📦 **Batch Commits**: Split large changes into multiple logical commits with AI-powered grouping
 
 ## 🆕 New Features (Compared to OpenCommit)
 
@@ -39,6 +40,7 @@ This fork introduces several enhancements and new capabilities:
 - 💰 **Cost Estimation**: Real-time cost estimation before generating commit messages to help you track API usage
 - 📜 **Commit History & Favorites**: Track your commit history and save frequently used commit message patterns
 - 🌿 **Branch-Aware Commits**: Automatically includes branch context (feature/, fix/, hotfix/, etc.) in commit messages
+- 📦 **Batch Commit Generation**: Split large diffs into multiple logical commits with AI-powered file grouping
 
 ## 📦 Installation
 
@@ -153,6 +155,58 @@ acp favorite list
 - ⭐ **Favorites**: Save frequently used commit message patterns for quick reference
 - 📊 **Usage Tracking**: Favorites are sorted by usage count to show your most-used patterns
 - 🔍 **Branch Context**: History includes branch information for better context
+
+### Batch Commit Generation
+
+Split large changes into multiple logical commits with AI-powered grouping:
+
+```bash
+# Split changes into 3 commits
+acp batch 3
+
+# Include unstaged changes
+acp batch 3 --all
+
+# Auto-commit without confirmation
+acp batch 3 --yes
+
+# Add context to commit messages
+acp batch 3 --context "Refactoring authentication system"
+```
+
+**How it works:**
+1. AI analyzes all your changed files
+2. Groups related files together based on functionality, dependencies, and feature boundaries
+3. Creates logical commit groups (e.g., "User authentication feature", "Update dependencies")
+4. Generates commit messages for each group
+5. Commits each group separately
+
+**Example:**
+```bash
+$ acp batch 2
+
+✔ Found 5 file(s) with changes
+✔ Grouped into 2 commit(s)
+
+📦 Will create 2 commit(s):
+
+  1. User authentication feature (3 files)
+     Adds login and registration functionality with related utilities
+     Files: src/auth.ts, src/login.ts, test/auth.test.ts
+
+  2. Update dependencies (2 files)
+     Updates package.json with new dependency versions
+     Files: package.json, package-lock.json
+
+✔ Generated 2 commit message(s)
+```
+
+**Features:**
+- 🤖 **AI-Powered Grouping**: Intelligently groups related files together
+- 📝 **Logical Commits**: Creates meaningful, atomic commits
+- 🔍 **Smart Validation**: Only commits files that actually have changes
+- ⚡ **Automatic Staging**: Handles file staging/unstaging automatically
+- 🎯 **Context-Aware**: Uses branch context to improve grouping decisions
 
 ### Branch-Aware Commit Messages
 
@@ -441,6 +495,7 @@ Alcapush includes up-to-date pricing for popular models:
 | Commit History | ✅ | ❌ |
 | Favorites | ✅ | ❌ |
 | Branch-Aware Commits | ✅ | ❌ |
+| Batch Commit Generation | ✅ | ❌ |
 
 ## 🛠️ Development
 
