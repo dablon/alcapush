@@ -54,22 +54,50 @@ export const getConfig = (): Required<alcapushConfig> => {
             process.env.ACP_MESSAGE_TEMPLATE_PLACEHOLDER;
 
     // Read from local .env file if exists
+    // Note: .env file values should NOT override config file values for security
+    // Only use .env if config file doesn't have the value
     const localEnvPath = join(process.cwd(), '.env');
     if (existsSync(localEnvPath)) {
         try {
             const envContent = readFileSync(localEnvPath, 'utf-8');
             const envLines = envContent.split('\n');
             envLines.forEach((line) => {
-                const [key, ...valueParts] = line.split('=');
+                // Skip comments and empty lines
+                const trimmedLine = line.trim();
+                if (!trimmedLine || trimmedLine.startsWith('#')) {
+                    return;
+                }
+                
+                const [key, ...valueParts] = trimmedLine.split('=');
                 const value = valueParts.join('=').trim();
-                if (key && value && key.startsWith('ACP_')) {
+                
+                // Remove quotes if present
+                const unquotedValue = value.replace(/^["']|["']$/g, '');
+                
+                if (key && unquotedValue && key.trim().startsWith('ACP_')) {
                     const configKey = key.trim() as keyof alcapushConfig;
+                    
+                    // For API key, only use .env value if config file doesn't have it
+                    // This prevents .env from overriding the user's configured API key
+                    if (configKey === 'ACP_API_KEY' && config.ACP_API_KEY) {
+                        return; // Skip - config file value takes precedence
+                    }
+                    
                     if (configKey === 'ACP_EMOJI' || configKey === 'ACP_DESCRIPTION' || configKey === 'ACP_ONE_LINE_COMMIT') {
-                        (config as any)[configKey] = value === 'true';
+                        // Only override if not already set in config file
+                        if (config[configKey] === undefined) {
+                            (config as any)[configKey] = unquotedValue === 'true';
+                        }
                     } else if (configKey === 'ACP_TOKENS_MAX_INPUT' || configKey === 'ACP_TOKENS_MAX_OUTPUT') {
-                        (config as any)[configKey] = parseInt(value, 10);
+                        // Only override if not already set in config file
+                        if (config[configKey] === undefined) {
+                            (config as any)[configKey] = parseInt(unquotedValue, 10);
+                        }
                     } else {
-                        (config as any)[configKey] = value;
+                        // Only override if not already set in config file
+                        if (config[configKey] === undefined) {
+                            (config as any)[configKey] = unquotedValue;
+                        }
                     }
                 }
             });
