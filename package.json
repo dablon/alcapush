@@ -1,6 +1,6 @@
 {
   "name": "alcapush",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "AI-powered git commit message generator with GPT-5-nano support 🚀",
   "keywords": [
     "git",
