@@ -1,6 +1,7 @@
 import chalk from 'chalk';
 import * as p from '@clack/prompts';
 import ora from 'ora';
+import { writeFileSync } from 'fs';
 import {
     getStagedDiff,
     stageAllChanges,
@@ -14,6 +15,8 @@ import {
 import { generateCommitMessageByDiff } from '../generateCommitMessage';
 import { getConfig } from '../utils/config';
 import { estimateCost } from '../utils/costEstimation';
+import { saveCommitToHistory } from '../utils/storage';
+import { analyzeBranch } from '../utils/branchAnalysis';
 
 export const commit = async (
     extraArgs: string[] = [],
@@ -106,8 +109,12 @@ export const commit = async (
             }
         }
 
+        // Get branch context
+        const currentBranch = await getCurrentBranch();
+        const branchContext = analyzeBranch(currentBranch);
+
         // Generate commit message
-        const spinner = ora('Generating commit message...').start();
+        const spinner = isHook ? null : ora('Generating commit message...').start();
         let commitMessage: string;
         const startTime = Date.now();
 
@@ -115,13 +122,43 @@ export const commit = async (
             commitMessage = await generateCommitMessageByDiff(
                 diff,
                 fullGitMojiSpec,
-                context
+                context,
+                branchContext
             );
             const elapsedTime = ((Date.now() - startTime) / 1000).toFixed(2);
-            spinner.succeed(`Commit message generated (${elapsedTime}s)`);
+            if (spinner) {
+                spinner.succeed(`Commit message generated (${elapsedTime}s)`);
+            }
         } catch (error) {
-            spinner.fail('Failed to generate commit message');
+            if (spinner) {
+                spinner.fail('Failed to generate commit message');
+            }
             throw error;
+        }
+
+        // In hook mode, write to commit message file and exit
+        if (isHook) {
+            // The commit message file path is passed as the first argument after --hook-mode
+            // Find the argument that's not a flag and not 'acp' or script name
+            const args = process.argv.slice(2); // Skip node and script path
+            const hookModeIndex = args.indexOf('--hook-mode');
+            const commitMsgFile = hookModeIndex >= 0 && args[hookModeIndex + 1] 
+                ? args[hookModeIndex + 1] 
+                : args.find(arg => !arg.startsWith('--') && !arg.includes('acp') && !arg.includes('node'));
+            
+            if (commitMsgFile && commitMsgFile !== '--hook-mode' && !commitMsgFile.startsWith('-')) {
+                try {
+                    writeFileSync(commitMsgFile, commitMessage, 'utf-8');
+                    // Exit successfully - hook mode should be silent
+                    return;
+                } catch (error) {
+                    // Fail silently in hook mode
+                    return;
+                }
+            }
+            // If no file path provided, just output the message (fallback)
+            process.stdout.write(commitMessage);
+            return;
         }
 
         // Display the generated message
@@ -131,7 +168,7 @@ export const commit = async (
         console.log(chalk.white('─'.repeat(50)) + '\n');
 
         // Ask for confirmation unless --yes flag is used
-        if (!skipConfirmation && !isHook) {
+        if (!skipConfirmation) {
             const shouldCommit = await p.confirm({
                 message: 'Commit with this message?',
                 initialValue: true
@@ -148,39 +185,39 @@ export const commit = async (
         try {
             await gitCommit(commitMessage, extraArgs);
             commitSpinner.succeed(chalk.green('✅ Changes committed successfully!'));
+            
+            // Save to history
+            saveCommitToHistory(commitMessage, currentBranch);
         } catch (error) {
             commitSpinner.fail('Failed to commit');
             throw error;
         }
 
-        // Ask to push if not in hook mode
-        if (!isHook) {
-            const currentBranch = await getCurrentBranch();
-            const shouldPush = await p.confirm({
-                message: `Push changes to remote (${currentBranch})?`,
-                initialValue: true
-            });
+        // Ask to push
+        const shouldPush = await p.confirm({
+            message: `Push changes to remote (${currentBranch})?`,
+            initialValue: true
+        });
 
-            if (!p.isCancel(shouldPush) && shouldPush) {
-                // Check if remote exists before attempting push
-                const hasRemoteRepo = await hasRemote();
-                if (!hasRemoteRepo) {
-                    console.log(chalk.yellow('⚠️  No remote repository configured. Skipping push.'));
-                } else {
-                    const pushSpinner = ora('Pushing to remote...').start();
-                    try {
-                        await push();
-                        pushSpinner.succeed(chalk.green('✅ Changes pushed successfully!'));
-                    } catch (error) {
-                        pushSpinner.fail('Failed to push');
-                        const err = error as Error;
-                        console.error(chalk.yellow(`\n⚠️  Push failed: ${err.message}`));
-                        // Don't exit with error, commit was successful
-                    }
+        if (!p.isCancel(shouldPush) && shouldPush) {
+            // Check if remote exists before attempting push
+            const hasRemoteRepo = await hasRemote();
+            if (!hasRemoteRepo) {
+                console.log(chalk.yellow('⚠️  No remote repository configured. Skipping push.'));
+            } else {
+                const pushSpinner = ora('Pushing to remote...').start();
+                try {
+                    await push();
+                    pushSpinner.succeed(chalk.green('✅ Changes pushed successfully!'));
+                } catch (error) {
+                    pushSpinner.fail('Failed to push');
+                    const err = error as Error;
+                    console.error(chalk.yellow(`\n⚠️  Push failed: ${err.message}`));
+                    // Don't exit with error, commit was successful
                 }
-            } else if (p.isCancel(shouldPush)) {
-                console.log(chalk.yellow('Push cancelled.'));
             }
+        } else if (p.isCancel(shouldPush)) {
+            console.log(chalk.yellow('Push cancelled.'));
         }
     } catch (error) {
         const err = error as Error;

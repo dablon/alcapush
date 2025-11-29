@@ -1,5 +1,6 @@
 import { OpenAI } from 'openai';
 import { getConfig } from './utils/config';
+import { BranchContext, formatBranchContext } from './utils/branchAnalysis';
 
 const GITMOJI_SPEC = {
     '🐛': 'Fix a bug',
@@ -16,7 +17,8 @@ const GITMOJI_SPEC = {
 
 export const getMainCommitPrompt = async (
     fullGitMojiSpec: boolean = false,
-    context: string = ''
+    context: string = '',
+    branchContext?: BranchContext
 ): Promise<Array<OpenAI.Chat.Completions.ChatCompletionMessageParam>> => {
     const config = getConfig();
     const language = config.ACP_LANGUAGE || 'en';
@@ -58,6 +60,20 @@ ${Object.entries(GITMOJI_SPEC)
 
     if (language !== 'en') {
         systemPrompt += `\n\nGenerate the commit message in ${language} language.`;
+    }
+
+    if (branchContext) {
+        const branchInfo = formatBranchContext(branchContext);
+        systemPrompt += `\n\nBranch context:\n${branchInfo}`;
+        
+        // Add guidance based on branch type
+        if (branchContext.suggestedType) {
+            systemPrompt += `\n\nConsider using commit type "${branchContext.suggestedType}" based on the branch name.`;
+        }
+        
+        if (branchContext.scope) {
+            systemPrompt += `\n\nConsider using scope "${branchContext.scope}" based on the branch name, if it matches the changes in the diff.`;
+        }
     }
 
     if (context) {

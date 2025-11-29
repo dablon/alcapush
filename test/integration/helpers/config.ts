@@ -1,17 +1,68 @@
-import { existsSync, readFileSync, writeFileSync, rmSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync, rmSync, mkdirSync, statSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 import ini from 'ini';
 
-const CONFIG_FILE_PATH = join(homedir(), '.alcapush');
+const CONFIG_DIR = join(homedir(), '.alcapush');
+const CONFIG_FILE_PATH = join(CONFIG_DIR, 'config.ini');
+
+// Check if path exists and is a file
+const isFile = (path: string): boolean => {
+  try {
+    return existsSync(path) && statSync(path).isFile();
+  } catch {
+    return false;
+  }
+};
+
+// Ensure config directory exists
+const ensureConfigDir = (): void => {
+  if (!existsSync(CONFIG_DIR)) {
+    mkdirSync(CONFIG_DIR, { recursive: true });
+  } else {
+    // Check if .alcapush exists as a file (old format) and migrate it
+    try {
+      const stat = statSync(CONFIG_DIR);
+      if (stat.isFile()) {
+        // Migrate old config file to new location
+        try {
+          const oldConfig = readFileSync(CONFIG_DIR, 'utf-8');
+          rmSync(CONFIG_DIR); // Remove old file
+          mkdirSync(CONFIG_DIR, { recursive: true });
+          writeFileSync(CONFIG_FILE_PATH, oldConfig);
+        } catch (error) {
+          // If migration fails, try to clean up and create directory
+          try {
+            if (existsSync(CONFIG_DIR)) {
+              rmSync(CONFIG_DIR);
+            }
+            mkdirSync(CONFIG_DIR, { recursive: true });
+          } catch {
+            // Ignore errors during cleanup
+          }
+        }
+      }
+    } catch (error) {
+      // If stat fails, assume it doesn't exist and create directory
+      try {
+        mkdirSync(CONFIG_DIR, { recursive: true });
+      } catch {
+        // Ignore errors
+      }
+    }
+  }
+};
 
 export class TestConfig {
   private originalConfig: string | null = null;
   private originalEnv: Record<string, string | undefined> = {};
 
   backup(): void {
+    // Ensure config directory exists (and migrate old config if needed)
+    ensureConfigDir();
+    
     // Backup original config file
-    if (existsSync(CONFIG_FILE_PATH)) {
+    if (isFile(CONFIG_FILE_PATH)) {
       this.originalConfig = readFileSync(CONFIG_FILE_PATH, 'utf-8');
     }
 
@@ -37,10 +88,13 @@ export class TestConfig {
   }
 
   restore(): void {
+    // Ensure config directory exists
+    ensureConfigDir();
+    
     // Restore config file
     if (this.originalConfig !== null) {
       writeFileSync(CONFIG_FILE_PATH, this.originalConfig);
-    } else if (existsSync(CONFIG_FILE_PATH)) {
+    } else if (isFile(CONFIG_FILE_PATH)) {
       rmSync(CONFIG_FILE_PATH);
     }
 
@@ -55,7 +109,10 @@ export class TestConfig {
   }
 
   set(key: string, value: string): void {
-    const config = existsSync(CONFIG_FILE_PATH)
+    // Ensure config directory exists
+    ensureConfigDir();
+    
+    const config = isFile(CONFIG_FILE_PATH)
       ? ini.parse(readFileSync(CONFIG_FILE_PATH, 'utf-8'))
       : {};
 
@@ -71,7 +128,10 @@ export class TestConfig {
   }
 
   get(key: string): string | undefined {
-    if (!existsSync(CONFIG_FILE_PATH)) {
+    // Ensure config directory exists
+    ensureConfigDir();
+    
+    if (!isFile(CONFIG_FILE_PATH)) {
       return undefined;
     }
     const config = ini.parse(readFileSync(CONFIG_FILE_PATH, 'utf-8'));
@@ -79,7 +139,10 @@ export class TestConfig {
   }
 
   clear(): void {
-    if (existsSync(CONFIG_FILE_PATH)) {
+    // Ensure config directory exists
+    ensureConfigDir();
+    
+    if (isFile(CONFIG_FILE_PATH)) {
       rmSync(CONFIG_FILE_PATH);
     }
   }
