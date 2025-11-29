@@ -133,16 +133,44 @@ export const batchCommand = command(
                 process.exit(1);
             }
             
-            spinner.succeed(`Found ${fileDiffs.length} file(s) with changes`);
-
-            if (fileDiffs.length === 0) {
-                console.error(chalk.red('❌ No file changes detected in diff.'));
+            // Verify files actually have changes by checking git
+            const { execa: execaImport } = await import('execa');
+            const { stdout: stagedFiles } = await execaImport('git', ['diff', '--cached', '--name-only'], { reject: false });
+            const { stdout: unstagedFiles } = await execaImport('git', ['diff', '--name-only'], { reject: false });
+            const actualChangedFiles = new Set<string>();
+            
+            if (stagedFiles) {
+                stagedFiles.split('\n').forEach(f => {
+                    const trimmed = f.trim();
+                    if (trimmed) actualChangedFiles.add(trimmed);
+                });
+            }
+            if (unstagedFiles) {
+                unstagedFiles.split('\n').forEach(f => {
+                    const trimmed = f.trim();
+                    if (trimmed) actualChangedFiles.add(trimmed);
+                });
+            }
+            
+            // Filter fileDiffs to only include files that actually have changes
+            const validFileDiffs = fileDiffs.filter(fd => actualChangedFiles.has(fd.filePath));
+            
+            if (validFileDiffs.length === 0) {
+                spinner.fail('No valid file changes detected');
+                console.error(chalk.red('❌ No valid file changes detected.'));
                 process.exit(1);
             }
+            
+            if (validFileDiffs.length < fileDiffs.length) {
+                spinner.warn(`Found ${validFileDiffs.length} valid file(s) (filtered ${fileDiffs.length - validFileDiffs.length} invalid)`);
+            } else {
+                spinner.succeed(`Found ${validFileDiffs.length} file(s) with changes`);
+            }
 
-            if (commitCount > fileDiffs.length) {
+
+            if (commitCount > validFileDiffs.length) {
                 console.error(
-                    chalk.red(`❌ Cannot create ${commitCount} commits from ${fileDiffs.length} file(s). Maximum: ${fileDiffs.length}`)
+                    chalk.red(`❌ Cannot create ${commitCount} commits from ${validFileDiffs.length} file(s). Maximum: ${validFileDiffs.length}`)
                 );
                 process.exit(1);
             }
@@ -151,11 +179,11 @@ export const batchCommand = command(
             const currentBranch = await getCurrentBranch();
             const branchContext = analyzeBranch(currentBranch);
             
-            const groupingSpinner = ora(`🤖 Splitting ${fileDiffs.length} file(s) into ${commitCount} logical commit(s)...`).start();
+            const groupingSpinner = ora(`🤖 Splitting ${validFileDiffs.length} file(s) into ${commitCount} logical commit(s)...`).start();
             let groups: FileGroup[];
             
             try {
-                groups = await suggestLogicalGroupings(fileDiffs, branchContext, commitCount);
+                groups = await suggestLogicalGroupings(validFileDiffs, branchContext, commitCount);
                 
                 // Ensure we have the right number of groups
                 if (groups.length !== commitCount) {
@@ -207,26 +235,26 @@ export const batchCommand = command(
                 }
                 
                 groupingSpinner.succeed(`Grouped into ${groups.length} commit(s)`);
-            } catch (error) {
-                groupingSpinner.fail('AI grouping failed, using fallback grouping');
-                // Fallback: distribute files evenly
-                groups = [];
-                const filesPerCommit = Math.ceil(fileDiffs.length / commitCount);
-                for (let i = 0; i < commitCount; i++) {
-                    const start = i * filesPerCommit;
-                    const end = Math.min(start + filesPerCommit, fileDiffs.length);
-                    const commitFiles = fileDiffs.slice(start, end);
-                    if (commitFiles.length > 0) {
-                        groups.push({
-                            id: `commit-${i + 1}`,
-                            name: `Commit ${i + 1}`,
-                            description: `${commitFiles.length} file(s)`,
-                            files: commitFiles,
-                            totalSize: commitFiles.reduce((sum, f) => sum + f.size, 0)
-                        });
+                } catch (error) {
+                    groupingSpinner.fail('AI grouping failed, using fallback grouping');
+                    // Fallback: distribute files evenly
+                    groups = [];
+                    const filesPerCommit = Math.ceil(validFileDiffs.length / commitCount);
+                    for (let i = 0; i < commitCount; i++) {
+                        const start = i * filesPerCommit;
+                        const end = Math.min(start + filesPerCommit, validFileDiffs.length);
+                        const commitFiles = validFileDiffs.slice(start, end);
+                        if (commitFiles.length > 0) {
+                            groups.push({
+                                id: `commit-${i + 1}`,
+                                name: `Commit ${i + 1}`,
+                                description: `${commitFiles.length} file(s)`,
+                                files: commitFiles,
+                                totalSize: commitFiles.reduce((sum, f) => sum + f.size, 0)
+                            });
+                        }
                     }
                 }
-            }
 
             if (groups.length === 0) {
                 console.error(chalk.red('❌ No file groups created.'));
@@ -323,15 +351,14 @@ export const batchCommand = command(
             // Execute commits
             const commitSpinner = ora('Committing changes...').start();
             let successCount = 0;
-            const { execa } = await import('execa');
 
             for (let i = 0; i < validCommitGroups.length; i++) {
                 const group = validCommitGroups[i];
                 
                 try {
                     // Get all files that currently have changes (staged or unstaged)
-                    const { stdout: allStagedFiles } = await execa('git', ['diff', '--cached', '--name-only'], { reject: false });
-                    const { stdout: allUnstagedFiles } = await execa('git', ['diff', '--name-only'], { reject: false });
+                    const { stdout: allStagedFiles } = await execaImport('git', ['diff', '--cached', '--name-only'], { reject: false });
+                    const { stdout: allUnstagedFiles } = await execaImport('git', ['diff', '--name-only'], { reject: false });
                     const availableFiles = new Set<string>();
                     
                     if (allStagedFiles) {
@@ -347,22 +374,37 @@ export const batchCommand = command(
                         });
                     }
                     
-                    // Filter group files to only those that still have changes
-                    const filePaths = group.files
-                        .map(f => f.filePath)
-                        .filter(fp => {
-                            // Basic validation
-                            if (!fp || 
-                                fp.includes('\n') || 
-                                fp.includes('${') ||
-                                fp.length >= 500 ||
-                                fp.length === 0 ||
-                                !(fp.startsWith('/') || fp.match(/^[\w\.\-]/))) {
-                                return false;
-                            }
-                            // Only include files that still have changes
-                            return availableFiles.has(fp);
-                        });
+                    // Check which files from this group still have changes
+                    const groupFilePaths = group.files.map(f => f.filePath);
+                    const filesWithChanges = groupFilePaths.filter(fp => availableFiles.has(fp));
+                    const missingFiles = groupFilePaths.filter(fp => !availableFiles.has(fp));
+                    
+                    if (filesWithChanges.length === 0) {
+                        // All files in this group are missing - they were likely already committed
+                        console.warn(chalk.yellow(`⚠️  No changes to commit in group: ${group.name}`));
+                        if (missingFiles.length > 0) {
+                            console.warn(chalk.dim(`   Files (already committed or no changes): ${missingFiles.join(', ')}`));
+                        }
+                        continue;
+                    }
+                    
+                    if (missingFiles.length > 0) {
+                        console.warn(chalk.dim(`   Note: ${missingFiles.length} file(s) in this group already committed: ${missingFiles.join(', ')}`));
+                    }
+                    
+                    // Filter group files to only those that still have changes (with validation)
+                    const filePaths = filesWithChanges.filter(fp => {
+                        // Basic validation
+                        if (!fp || 
+                            fp.includes('\n') || 
+                            fp.includes('${') ||
+                            fp.length >= 500 ||
+                            fp.length === 0 ||
+                            !(fp.startsWith('/') || fp.match(/^[\w\.\-]/))) {
+                            return false;
+                        }
+                        return true;
+                    });
                     
                     if (filePaths.length === 0) {
                         console.warn(chalk.yellow(`⚠️  No changes to commit in group: ${group.name} (files may have been committed already)`));
@@ -373,7 +415,7 @@ export const batchCommand = command(
                     await stageFiles(filePaths);
 
                     // Verify we have something staged to commit
-                    const { stdout: stagedDiff } = await execa('git', ['diff', '--cached', '--name-only'], { reject: false });
+                    const { stdout: stagedDiff } = await execaImport('git', ['diff', '--cached', '--name-only'], { reject: false });
                     if (!stagedDiff || stagedDiff.trim().length === 0) {
                         console.warn(chalk.yellow(`⚠️  Nothing staged for commit in group: ${group.name}`));
                         continue;
