@@ -323,52 +323,54 @@ export const batchCommand = command(
             // Execute commits
             const commitSpinner = ora('Committing changes...').start();
             let successCount = 0;
+            const { execa } = await import('execa');
 
             for (let i = 0; i < validCommitGroups.length; i++) {
                 const group = validCommitGroups[i];
                 
                 try {
-                    // Stage only the files in this group
-                    const filePaths = group.files.map(f => f.filePath).filter(fp => {
-                        // Basic validation - skip obviously invalid paths
-                        return fp && 
-                               !fp.includes('\n') && 
-                               !fp.includes('${') &&
-                               fp.length < 500 &&
-                               fp.length > 0 &&
-                               (fp.startsWith('/') || fp.match(/^[\w\.\-]/));
-                    });
+                    // Get all files that currently have changes (staged or unstaged)
+                    const { stdout: allStagedFiles } = await execa('git', ['diff', '--cached', '--name-only'], { reject: false });
+                    const { stdout: allUnstagedFiles } = await execa('git', ['diff', '--name-only'], { reject: false });
+                    const availableFiles = new Set<string>();
+                    
+                    if (allStagedFiles) {
+                        allStagedFiles.split('\n').forEach(f => {
+                            const trimmed = f.trim();
+                            if (trimmed) availableFiles.add(trimmed);
+                        });
+                    }
+                    if (allUnstagedFiles) {
+                        allUnstagedFiles.split('\n').forEach(f => {
+                            const trimmed = f.trim();
+                            if (trimmed) availableFiles.add(trimmed);
+                        });
+                    }
+                    
+                    // Filter group files to only those that still have changes
+                    const filePaths = group.files
+                        .map(f => f.filePath)
+                        .filter(fp => {
+                            // Basic validation
+                            if (!fp || 
+                                fp.includes('\n') || 
+                                fp.includes('${') ||
+                                fp.length >= 500 ||
+                                fp.length === 0 ||
+                                !(fp.startsWith('/') || fp.match(/^[\w\.\-]/))) {
+                                return false;
+                            }
+                            // Only include files that still have changes
+                            return availableFiles.has(fp);
+                        });
                     
                     if (filePaths.length === 0) {
-                        console.warn(chalk.yellow(`⚠️  No valid files to commit in group: ${group.name}`));
-                        continue;
-                    }
-                    
-                    // Check if files have changes before staging
-                    const { execa } = await import('execa');
-                    const filesWithChanges: string[] = [];
-                    
-                    for (const filePath of filePaths) {
-                        try {
-                            // Check if file has staged or unstaged changes
-                            const { stdout: staged } = await execa('git', ['diff', '--cached', '--name-only', '--', filePath], { reject: false });
-                            const { stdout: unstaged } = await execa('git', ['diff', '--name-only', '--', filePath], { reject: false });
-                            
-                            if (staged.trim() === filePath || unstaged.trim() === filePath) {
-                                filesWithChanges.push(filePath);
-                            }
-                        } catch {
-                            // File might be new, try to stage it anyway
-                            filesWithChanges.push(filePath);
-                        }
-                    }
-                    
-                    if (filesWithChanges.length === 0) {
                         console.warn(chalk.yellow(`⚠️  No changes to commit in group: ${group.name} (files may have been committed already)`));
                         continue;
                     }
                     
-                    await stageFiles(filesWithChanges);
+                    // Stage the files
+                    await stageFiles(filePaths);
 
                     // Verify we have something staged to commit
                     const { stdout: stagedDiff } = await execa('git', ['diff', '--cached', '--name-only'], { reject: false });

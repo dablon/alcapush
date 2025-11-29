@@ -378,6 +378,7 @@ Return a JSON array of suggested groups.`;
         // Validate and convert to FileGroup format
         const fileGroups: FileGroup[] = [];
         const usedIndices = new Set<number>();
+        const usedFilePaths = new Set<string>(); // Track by file path to avoid duplicates
 
         for (let i = 0; i < groups.length; i++) {
             const group = groups[i];
@@ -388,14 +389,23 @@ Return a JSON array of suggested groups.`;
             // Convert 1-based indices to 0-based and validate
             const fileIndices = group.files
                 .map((idx: number) => idx - 1)
-                .filter((idx: number) => idx >= 0 && idx < files.length && !usedIndices.has(idx));
+                .filter((idx: number) => {
+                    if (idx < 0 || idx >= files.length) return false;
+                    const filePath = files[idx].filePath;
+                    // Skip if already used in another group
+                    if (usedIndices.has(idx) || usedFilePaths.has(filePath)) return false;
+                    return true;
+                });
 
             if (fileIndices.length === 0) {
                 continue;
             }
 
-            // Mark indices as used
-            fileIndices.forEach(idx => usedIndices.add(idx));
+            // Mark indices and file paths as used
+            fileIndices.forEach(idx => {
+                usedIndices.add(idx);
+                usedFilePaths.add(files[idx].filePath);
+            });
 
             const groupFiles = fileIndices.map(idx => files[idx]);
             const totalSize = groupFiles.reduce((sum, f) => sum + f.size, 0);
@@ -411,13 +421,14 @@ Return a JSON array of suggested groups.`;
 
         // Add any unused files as individual groups
         for (let i = 0; i < files.length; i++) {
-            if (!usedIndices.has(i)) {
+            if (!usedIndices.has(i) && !usedFilePaths.has(files[i].filePath)) {
                 fileGroups.push({
                     id: `ai-group-${fileGroups.length}`,
                     name: files[i].filePath,
                     files: [files[i]],
                     totalSize: files[i].size
                 });
+                usedFilePaths.add(files[i].filePath);
             }
         }
 
