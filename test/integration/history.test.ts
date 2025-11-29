@@ -44,6 +44,10 @@ describe('History Command Integration Tests', () => {
 
     describe('history list', () => {
         it('should show empty history when no commits exist', () => {
+            // Clear history first to ensure clean state
+            const { clearCommitHistory } = require('../../src/utils/storage');
+            clearCommitHistory();
+            
             const output = execSync(
                 `node ${cliPath} history`,
                 { encoding: 'utf-8' }

@@ -67,6 +67,9 @@ describe('Storage Unit Tests', () => {
         });
 
         it('should limit history to 100 entries', () => {
+            // Clear history first to ensure clean state
+            clearCommitHistory();
+            
             for (let i = 0; i < 150; i++) {
                 saveCommitToHistory(`commit ${i}`);
             }
