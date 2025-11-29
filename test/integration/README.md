@@ -56,3 +56,4 @@ npm run test:integration -- --watch
 - Tests use mocked AI responses to avoid API costs and ensure consistent results
 - Some tests may require interactive input simulation (currently skipped or handled with `--yes` flag)
 
+
