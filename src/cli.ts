@@ -1,9 +1,12 @@
 import { cli } from 'cleye';
 import { commit } from './commands/commit';
 import { configCommand } from './commands/config';
+import { hookCommand } from './commands/hook';
+import { historyCommand, favoriteCommand } from './commands/history';
 import chalk from 'chalk';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { validateCommitMessageFromFile } from './utils/commitValidation';
 
 // Get package.json version dynamically
 // Since esbuild bundles as CJS, __dirname will be available in the built version
@@ -44,7 +47,7 @@ cli(
     {
         version: packageJSON.version,
         name: 'alcapush',
-        commands: [configCommand],
+        commands: [configCommand, hookCommand, historyCommand, favoriteCommand],
         flags: {
             fgm: {
                 type: Boolean,
@@ -62,6 +65,16 @@ cli(
                 alias: 'y',
                 description: 'Skip commit confirmation prompt',
                 default: false
+            },
+            'hook-mode': {
+                type: Boolean,
+                description: 'Run in hook mode (for prepare-commit-msg hook)',
+                default: false
+            },
+            'validate-commit-msg': {
+                type: String,
+                description: 'Validate commit message file (for commit-msg hook)',
+                default: ''
             }
         },
         ignoreArgv: (type) => type === 'unknown-flag',
@@ -72,9 +85,17 @@ ${chalk.cyan('Usage:')}
   ${chalk.white('acp')}                    Generate commit message for staged changes
   ${chalk.white('acp --yes')}               Auto-commit without confirmation
   ${chalk.white('acp -c "context"')}       Add additional context
-  ${chalk.white('acp config set KEY=VAL')} Set configuration
-  ${chalk.white('acp config get KEY')}     Get configuration value
-  ${chalk.white('acp config list')}        List all configuration
+            ${chalk.white('acp config set KEY=VAL')} Set configuration
+            ${chalk.white('acp config get KEY')}     Get configuration value
+            ${chalk.white('acp config list')}        List all configuration
+            ${chalk.white('acp hook install')}       Install git hooks
+            ${chalk.white('acp hook uninstall')}     Uninstall git hooks
+            ${chalk.white('acp hook status')}        Check hook installation status
+            ${chalk.white('acp history')}            View commit history
+            ${chalk.white('acp history clear')}      Clear commit history
+            ${chalk.white('acp favorite add MSG')}   Add message to favorites
+            ${chalk.white('acp favorite remove MSG')} Remove message from favorites
+            ${chalk.white('acp favorite list')}      List all favorites
 
 ${chalk.cyan('Examples:')}
   ${chalk.gray('# First time setup')}
@@ -97,9 +118,57 @@ ${chalk.cyan('Examples:')}
         }
     },
     async (argv) => {
-        // If a command was matched (config), don't run the default commit handler
+        // If a command was matched (config, hook, history, favorite), don't run the default commit handler
         // Commands are handled by cleye automatically, but check argv._ to be safe
-        if (argv._.length > 0 && argv._[0] === 'config') {
+        if (argv._.length > 0 && (argv._[0] === 'config' || argv._[0] === 'hook' || argv._[0] === 'history' || argv._[0] === 'favorite')) {
+            return;
+        }
+        
+        // Handle validate-commit-msg flag (for commit-msg hook)
+        if (argv.flags['validate-commit-msg']) {
+            try {
+                const result = await validateCommitMessageFromFile(argv.flags['validate-commit-msg']);
+                
+                if (!result.valid) {
+                    console.error(chalk.red('\n❌ Commit message validation failed:\n'));
+                    result.errors.forEach(error => {
+                        console.error(chalk.red(`  • ${error}`));
+                    });
+                    if (result.warnings.length > 0) {
+                        console.log(chalk.yellow('\n⚠️  Warnings:'));
+                        result.warnings.forEach(warning => {
+                            console.log(chalk.yellow(`  • ${warning}`));
+                        });
+                    }
+                    process.exit(1);
+                }
+                
+                if (result.warnings.length > 0) {
+                    console.log(chalk.yellow('\n⚠️  Commit message warnings:'));
+                    result.warnings.forEach(warning => {
+                        console.log(chalk.yellow(`  • ${warning}`));
+                    });
+                }
+                
+                // Validation passed
+                process.exit(0);
+            } catch (error) {
+                const err = error as Error;
+                console.error(chalk.red(`Error: ${err.message}`));
+                process.exit(1);
+            }
+            return;
+        }
+        
+        // Handle hook-mode flag (for prepare-commit-msg hook)
+        if (argv.flags['hook-mode']) {
+            try {
+                await commit(process.argv.slice(2), argv.flags.context, true, argv.flags.fgm, true);
+            } catch (error) {
+                // In hook mode, fail silently to not interrupt git commit
+                // The hook will just not generate a message if it fails
+                process.exit(0);
+            }
             return;
         }
         

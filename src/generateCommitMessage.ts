@@ -5,6 +5,7 @@ import { getEngine } from './utils/engine';
 import { mergeDiffs } from './utils/mergeDiffs';
 import { tokenCount } from './utils/tokenCount';
 import { filterDiff } from './utils/diffFilter';
+import { BranchContext } from './utils/branchAnalysis';
 
 const ADJUSTMENT_FACTOR = 20;
 
@@ -288,7 +289,8 @@ const validateAndTruncateMessages = (
 const generateCommitMessageByDiffInternal = async (
     diff: string,
     fullGitMojiSpec: boolean = false,
-    context: string = ''
+    context: string = '',
+    branchContext?: BranchContext
 ): Promise<{ message: string; filteredDiff: string; systemPrompt: Array<OpenAI.Chat.Completions.ChatCompletionMessageParam> }> => {
     try {
         const config = getConfig();
@@ -298,7 +300,8 @@ const generateCommitMessageByDiffInternal = async (
         // Generate system prompt first (needed for token calculation)
         const INIT_MESSAGES_PROMPT = await getMainCommitPrompt(
             fullGitMojiSpec,
-            context
+            context,
+            branchContext
         );
 
         const INIT_MESSAGES_PROMPT_LENGTH = INIT_MESSAGES_PROMPT.map(
@@ -392,9 +395,10 @@ const generateCommitMessageByDiffInternal = async (
 export const generateCommitMessageByDiff = async (
     diff: string,
     fullGitMojiSpec: boolean = false,
-    context: string = ''
+    context: string = '',
+    branchContext?: BranchContext
 ): Promise<string> => {
-    const result = await generateCommitMessageByDiffInternal(diff, fullGitMojiSpec, context);
+    const result = await generateCommitMessageByDiffInternal(diff, fullGitMojiSpec, context, branchContext);
     return result.message;
 };
 
