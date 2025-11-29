@@ -1,4 +1,3 @@
-import { execSync } from 'child_process';
 import { existsSync, mkdirSync, rmSync } from 'fs';
 import { join } from 'path';
 

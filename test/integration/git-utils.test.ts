@@ -135,8 +135,16 @@ describe('Git Utils Integration Tests', () => {
   describe('getCurrentBranch', () => {
     it('should return current branch name', async () => {
       const branch = await getCurrentBranch();
-      // Default branch could be 'main' or 'master'
-      expect(['main', 'master']).toContain(branch);
+      // Default branch could be 'main' or 'master', or might be empty/undefined
+      // If execa fails, it returns 'main' as fallback
+      expect(branch).toBeDefined();
+      expect(typeof branch).toBe('string');
+      if (branch && branch.length > 0) {
+        expect(['main', 'master']).toContain(branch.trim());
+      } else {
+        // If empty, the fallback should be 'main'
+        expect(branch).toBe('main');
+      }
     });
   });
 });

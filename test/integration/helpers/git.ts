@@ -27,7 +27,15 @@ export class TestGitRepo {
   }
 
   async createFile(filename: string, content: string): Promise<void> {
-    writeFileSync(join(this.repoPath, filename), content);
+    const filePath = join(this.repoPath, filename);
+    const dirPath = join(filePath, '..');
+    
+    // Create directory structure if it doesn't exist
+    if (!existsSync(dirPath)) {
+      mkdirSync(dirPath, { recursive: true });
+    }
+    
+    writeFileSync(filePath, content);
   }
 
   async stageFile(filename: string): Promise<void> {
