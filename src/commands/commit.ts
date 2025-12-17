@@ -211,7 +211,10 @@ export const commit = async (
             if (!hasRemoteRepo) {
                 console.log(chalk.yellow('⚠️  No remote repository configured. Skipping push.'));
             } else {
-                const pushSpinner = ora('Pushing to remote...').start();
+                const pushSpinner = ora({
+                    text: ' Pushing to remote...',
+                    spinner: getPacmanSpinner()
+                }).start();
                 try {
                     await push();
                     pushSpinner.succeed(chalk.green('✅ Changes pushed successfully!'));
