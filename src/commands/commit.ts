@@ -17,6 +17,7 @@ import { getConfig } from '../utils/config';
 import { estimateCost } from '../utils/costEstimation';
 import { saveCommitToHistory } from '../utils/storage';
 import { analyzeBranch } from '../utils/branchAnalysis';
+import { getPacmanSpinner } from '../utils/pacmanSpinner';
 
 export const commit = async (
     extraArgs: string[] = [],
@@ -82,13 +83,13 @@ export const commit = async (
 
         // Quick cost estimation before generating (using fast approximation)
         const costEstimate = await estimateCost(diff, fullGitMojiSpec, context);
-        
+
         // Show confirmation with cost and token information
         if (!skipConfirmation && !isHook) {
             const costDisplay = costEstimate.estimatedCost > 0
                 ? `${costEstimate.costCurrency}${costEstimate.estimatedCost.toFixed(6)}`
                 : 'Free (local)';
-            
+
             const costInfo = [
                 chalk.cyan('📊 Usage Estimate:'),
                 `   Input tokens: ${chalk.yellow(costEstimate.inputTokens.toLocaleString())}`,
@@ -114,7 +115,12 @@ export const commit = async (
         const branchContext = analyzeBranch(currentBranch);
 
         // Generate commit message
-        const spinner = isHook ? null : ora('Generating commit message...').start();
+        const pacmanSpinner = getPacmanSpinner();
+
+        const spinner = isHook ? null : ora({
+            text: ' Generating commit message...', // Added space for alignment
+            spinner: pacmanSpinner
+        }).start();
         let commitMessage: string;
         const startTime = Date.now();
 
@@ -142,10 +148,10 @@ export const commit = async (
             // Find the argument that's not a flag and not 'acp' or script name
             const args = process.argv.slice(2); // Skip node and script path
             const hookModeIndex = args.indexOf('--hook-mode');
-            const commitMsgFile = hookModeIndex >= 0 && args[hookModeIndex + 1] 
-                ? args[hookModeIndex + 1] 
+            const commitMsgFile = hookModeIndex >= 0 && args[hookModeIndex + 1]
+                ? args[hookModeIndex + 1]
                 : args.find(arg => !arg.startsWith('--') && !arg.includes('acp') && !arg.includes('node'));
-            
+
             if (commitMsgFile && commitMsgFile !== '--hook-mode' && !commitMsgFile.startsWith('-')) {
                 try {
                     writeFileSync(commitMsgFile, commitMessage, 'utf-8');
@@ -185,7 +191,7 @@ export const commit = async (
         try {
             await gitCommit(commitMessage, extraArgs);
             commitSpinner.succeed(chalk.green('✅ Changes committed successfully!'));
-            
+
             // Save to history
             saveCommitToHistory(commitMessage, currentBranch);
         } catch (error) {
