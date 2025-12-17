@@ -40,7 +40,22 @@ This fork introduces several enhancements and new capabilities:
 - 💰 **Cost Estimation**: Real-time cost estimation before generating commit messages to help you track API usage
 - 📜 **Commit History & Favorites**: Track your commit history and save frequently used commit message patterns
 - 🌿 **Branch-Aware Commits**: Automatically includes branch context (feature/, fix/, hotfix/, etc.) in commit messages
-- 📦 **Batch Commit Generation**: Split large diffs into multiple logical commits with AI-powered file grouping
+- 🤖 **AI-Powered Grouping**: Intelligently groups related files together
+- 📝 **Logical Commits**: Creates meaningful, atomic commits
+- 🔍 **Smart Validation**: Only commits files that actually have changes
+- ⚡ **Automatic Staging**: Handles file staging/unstaging automatically
+- 🎯 **Context-Aware**: Uses branch context to improve grouping decisions
+
+### Retro Loading Animation 🍒
+
+Alcapush now features a custom **Pac-Man loading animation** during commit generation and push operations! 
+
+- **Fun Visuals**: Watch Pac-Man chase ghosts while your commit is being generated
+- **Detailed Animation**: Colored ghosts (Red, Pink, Cyan, Orange) and smooth movement
+- **Clean Interface**: Integrated into the CLI without cluttering your terminal
+
+![Pacman Animation](docs/screenshots/pacman-loading.png)
+*(Note: Animation requires a terminal with basic Unicode support)*
 
 ## 📦 Installation
 
