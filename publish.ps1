@@ -4,7 +4,8 @@
 param(
     [switch]$SkipTests,
     [switch]$SkipGit,
-    [switch]$DryRun
+    [switch]$DryRun,
+    [string]$Otp
 )
 
 $ErrorActionPreference = "Stop"
@@ -232,19 +233,53 @@ function Show-DryRun {
 }
 
 # Publish to npm
+# Publish to npm
 function Publish-Npm {
     Write-Info "Publishing to npm..."
     try {
-        npm publish
+        if ($Otp) {
+            Write-Info "Using provided OTP..."
+            npm publish --otp=$Otp
+        } else {
+            npm publish
+        }
+        
         if ($LASTEXITCODE -ne 0) {
-            Write-Error "Publish failed!"
-            return $false
+            throw "Publish command failed with exit code $LASTEXITCODE"
         }
         Write-Success "Published successfully!"
         return $true
     } catch {
-        Write-Error "Publish failed: $_"
-        return $false
+        Write-Warning "Publish failed. It might require 2FA."
+        Write-Host "Error details: $_" -ForegroundColor Gray
+        
+        # If we already tried with OTP, or if the user doesn't want to provide one, fail.
+        if ($Otp) {
+            Write-Error "Publish failed even with provided OTP."
+            return $false
+        }
+        
+        Write-Host ""
+        $userOtp = Read-Host "If 2FA is required, please enter your OTP code (or press Enter to cancel)"
+        
+        if (-not [string]::IsNullOrWhiteSpace($userOtp)) {
+            Write-Info "Retrying with OTP..."
+            try {
+                npm publish --otp=$userOtp
+                if ($LASTEXITCODE -ne 0) {
+                   Write-Error "Publish failed with OTP!"
+                   return $false
+                }
+                Write-Success "Published successfully with OTP!"
+                return $true
+            } catch {
+                Write-Error "Publish with OTP failed: $_"
+                return $false
+            }
+        } else {
+            Write-Error "Publish failed and no OTP provided."
+            return $false
+        }
     }
 }
 
