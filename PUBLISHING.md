@@ -1,5 +1,19 @@
 # Publishing Guide for Alcapush
 
+## Automatic GitHub Releases
+
+Every push to `main` or `master` now triggers `.github/workflows/release.yml`.
+
+The workflow automatically:
+
+1. Installs dependencies with `npm ci`
+2. Builds the CLI with `npm run build`
+3. Smoke-tests the generated binary with `node ./out/cli.cjs --help`
+4. Packages the project for **Linux**, **macOS**, and **Windows**
+5. Publishes a **pre-release per commit** in GitHub Releases using a `snapshot-<commit-sha>` tag
+
+This automation creates GitHub release assets for each commit on the main branches. **npm publishing remains a separate manual step** so you can continue controlling public package versions.
+
 ## Prerequisites
 
 1. **Create an npm account** (if you don't have one):
@@ -155,10 +169,10 @@ npm unpublish alcapush@1.0.0
 
 2. **Update README.md** if needed with installation instructions
 
-3. **Create a GitHub release** (optional but recommended):
-   - Go to your GitHub repository
-   - Create a new release with the version tag
-   - Add release notes
+3. **Check the automatic GitHub release**:
+   - Open the repository Releases page
+   - Confirm the workflow generated the `snapshot-<commit-sha>` pre-release
+   - Download the Linux, macOS, or Windows package artifact if needed
 
 ## Best Practices
 
@@ -178,4 +192,3 @@ npm unpublish alcapush@1.0.0
    ```bash
    npm version patch -m "Release v%s"
    ```
-
