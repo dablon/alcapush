@@ -2,7 +2,7 @@
 
 ## Automatic GitHub Releases
 
-Every push to `main` or `master` now triggers `.github/workflows/release.yml`.
+Every push now triggers `.github/workflows/release.yml`.
 
 The workflow automatically:
 
@@ -12,7 +12,7 @@ The workflow automatically:
 4. Packages the project for **Linux**, **macOS**, and **Windows**
 5. Publishes a **pre-release per commit** in GitHub Releases using a `snapshot-<commit-sha>` tag
 
-This automation creates GitHub release assets for each commit on the main branches. **npm publishing remains a separate manual step** so you can continue controlling public package versions.
+This automation creates GitHub release assets for each commit. **npm publishing remains a separate manual step** so you can continue controlling public package versions.
 
 ## Prerequisites
 
