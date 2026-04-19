@@ -2,7 +2,7 @@
 
 > AI-powered git commit message generator with GPT-5-nano support
 
-**Alcapush is a fork of [opencommit](https://github.com/di-sukharev/opencommit)** with enhanced features, better UX, and support for the latest AI models including GPT-5-nano.
+**Alcapush is a fork of [opencommit](https://github.com/di-sukharev/opencommit)** with enhanced features, better UX, and support for the latest AI models.
 
 [![npm version](https://img.shields.io/npm/v/alcapush.svg)](https://www.npmjs.com/package/alcapush)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -11,7 +11,7 @@
 
 ## ✨ Features
 
-- 🤖 **Multiple AI Providers**: OpenAI (GPT-5-nano, GPT-4, GPT-3.5), Anthropic Claude, Google Gemini, Ollama
+- 🤖 **Multiple AI Providers**: OpenAI (GPT-5-nano, GPT-4, GPT-3.5), Anthropic Claude, Google Gemini, Ollama, **MiniMax**
 - 🎯 **Smart Fallback**: Automatically falls back to gpt-4o-mini if GPT-5-nano is not available
 - 📝 **Conventional Commits**: Follows the Conventional Commits specification
 - 🎨 **GitMoji Support**: Optional emoji prefixes for visual commit history
@@ -265,7 +265,7 @@ acp
 | Option | Description | Default |
 |--------|-------------|---------|
 | `ACP_API_KEY` | API key for the AI provider | - |
-| `ACP_AI_PROVIDER` | AI provider (openai, anthropic, gemini, ollama) | `openai` |
+| `ACP_AI_PROVIDER` | AI provider (openai, anthropic, gemini, ollama, minimax) | `openai` |
 | `ACP_MODEL` | Model name | `gpt-5-nano` (fallback: `gpt-4o-mini`) |
 | `ACP_TOKENS_MAX_INPUT` | Max input tokens | `4096` |
 | `ACP_TOKENS_MAX_OUTPUT` | Max output tokens | `500` |
@@ -310,6 +310,15 @@ ollama run mistral
 # Configure Alcapush
 acp config set ACP_AI_PROVIDER=ollama
 acp config set ACP_MODEL=mistral
+```
+
+### MiniMax
+
+```bash
+acp config set ACP_AI_PROVIDER=minimax
+acp config set ACP_API_KEY=your-minimax-api-key
+acp config set ACP_MODEL=minimax-m2.7
+acp config set ACP_API_URL=https://api.minimax.io/v1
 ```
 
 ## 🎨 Examples
@@ -496,6 +505,7 @@ Alcapush includes up-to-date pricing for popular models:
 | Feature | Alcapush | OpenCommit |
 |---------|-------------|------------|
 | GPT-5-nano Support | ✅ | ❌ |
+| MiniMax Support | ✅ | ❌ |
 | Auto-fallback Mechanism | ✅ | ❌ |
 | Cost Estimation | ✅ | ❌ |
 | Config Test Command | ✅ | ❌ |

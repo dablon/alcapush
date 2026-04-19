@@ -21,7 +21,8 @@ export enum AIProvider {
     ANTHROPIC = 'anthropic',
     GEMINI = 'gemini',
     AZURE = 'azure',
-    OLLAMA = 'ollama'
+    OLLAMA = 'ollama',
+    MINIMAX = 'minimax'
 }
 
 export interface alcapushConfig {

@@ -1,5 +1,20 @@
-import { AiEngine } from '../../src/types';
 import { OpenAI } from 'openai';
+
+interface AiEngineConfig {
+    apiKey: string;
+    model: string;
+    maxTokensOutput: number;
+    maxTokensInput: number;
+    baseURL?: string;
+    customHeaders?: Record<string, string>;
+}
+
+interface AiEngine {
+    config: AiEngineConfig;
+    generateCommitMessage(
+        messages: Array<OpenAI.Chat.Completions.ChatCompletionMessageParam>
+    ): Promise<string | null | undefined>;
+}
 
 export class MockAiEngine implements AiEngine {
   config: any;

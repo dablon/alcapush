@@ -117,7 +117,7 @@ export const push = async (remote?: string, branch?: string): Promise<void> => {
 /**
  * Check if a file exists in the working directory
  */
-const fileExists = async (filePath: string): Promise<boolean> => {
+export const fileExists = async (filePath: string): Promise<boolean> => {
     try {
         const { existsSync } = await import('fs');
         return existsSync(filePath);

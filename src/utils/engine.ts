@@ -4,6 +4,7 @@ import { OpenAiEngine } from '../engine/openai';
 import { AnthropicEngine } from '../engine/anthropic';
 import { GeminiEngine } from '../engine/gemini';
 import { OllamaEngine } from '../engine/ollama';
+import { MiniMaxEngine } from '../engine/minimax';
 
 export const parseCustomHeaders = (
     headers: any
@@ -55,8 +56,11 @@ export const getEngine = (): AiEngine => {
             return new GeminiEngine(DEFAULT_CONFIG);
 
         case AIProvider.AZURE:
-            // For now, Azure uses the same OpenAI engine
+            // Azure uses OpenAI engine with custom endpoint
             return new OpenAiEngine(DEFAULT_CONFIG);
+
+        case AIProvider.MINIMAX:
+            return new MiniMaxEngine(DEFAULT_CONFIG);
 
         default:
             return new OpenAiEngine(DEFAULT_CONFIG);
